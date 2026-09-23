@@ -13,6 +13,22 @@ usage() {
     vs_flag_help
 }
 
+about() {
+    vs_about <<'TXT'
+uv is a Python package and project manager, written in Rust and very
+fast. It replaces a pile of older tools that each did one part of the
+job: pip for installing, virtualenv for isolation, pipx for
+command-line tools, and pyenv for juggling interpreter versions.
+
+vivario uses it to install the vivo toolset -- real commands you can
+run from any project, in a private environment of their own. So vivo's
+dependencies cannot collide with what your projects need, and nothing
+your projects install can break vivo.
+
+Worth having for your own Python work regardless.
+TXT
+}
+
 # --- detect ---------------------------------------------------------------
 
 found=""
@@ -95,10 +111,12 @@ plan
 vs_report "$NAME" "$version" "$status" "$detail"
 
 if [ "$status" = "$VS_STATUS_OK" ]; then
+    about
     exit 0
 fi
 
 vs_note "$fix"
+about
 
 if [ "$VS_ACTION" != install ] || [ -n "$VS_DRY_RUN" ]; then
     # verify and dry-run both stop here: they report, they never act.

@@ -140,7 +140,16 @@ vs_resolve() {
         esac
         n=$((n + 1))
     done
-    printf '%s\n' "$p"
+    local dir base
+    dir=$(dirname "$p")
+    base=$(basename "$p")
+    if [ -d "$dir" ]; then
+        dir=$(cd "$dir" 2>/dev/null && pwd) || dir=$(dirname "$p")
+    fi
+    case "$dir" in
+        /) printf '/%s\n' "$base" ;;
+        *) printf '%s/%s\n' "$dir" "$base" ;;
+    esac
 }
 
 # ---------------------------------------------------------------------------
@@ -180,6 +189,20 @@ vs_note() {
 
 vs_heading() {
     printf '\n%s\n' "$1"
+}
+
+# vs_about -- indent a prose block read from stdin, for --verbose.
+#
+# Explains what a thing IS and why vivario wants it, which is different from the
+# diagnostic detail vs_debug carries. Both belong to --verbose: someone meeting
+# this for the first time wants the former, someone debugging wants the latter.
+vs_about() {
+    if [ -z "${VS_VERBOSE:-}" ]; then
+        cat >/dev/null
+        return 0
+    fi
+    sed 's/^./      &/'
+    printf '\n'
 }
 
 # vs_debug TEXT -- only when --verbose asked for it.
@@ -310,6 +333,9 @@ vs_fetch_state() {
 # discovering it separately: one 3-second answer instead of N timeouts, and the
 # user is told plainly why enrichment is missing instead of inferring it from
 # several rows saying "unknown".
+VS_PROBE_URL=https://github.com
+VS_PROBE_TIMEOUT=3
+
 vs_probe_network() {
     if [ -n "${VS_OFFLINE:-}" ]; then
         return 2
@@ -317,8 +343,14 @@ vs_probe_network() {
     if ! have_cmd curl; then
         return 3
     fi
-    if curl -sI --max-time 3 https://github.com >/dev/null 2>&1; then
+    if curl -sI --max-time "$VS_PROBE_TIMEOUT" "$VS_PROBE_URL" >/dev/null 2>&1; then
         return 0
     fi
     return 3
+}
+
+# vs_probe_description -- what the probe actually does, for --verbose. A report
+# that says "ok" without saying what was tested is not checkable.
+vs_probe_description() {
+    printf 'curl -sI %s, %ss timeout\n' "$VS_PROBE_URL" "$VS_PROBE_TIMEOUT"
 }

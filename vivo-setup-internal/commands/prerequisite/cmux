@@ -22,6 +22,19 @@ usage() {
     vs_flag_help
 }
 
+about() {
+    vs_about <<'TXT'
+cmux is a fast, GPU-rendered macOS terminal and windowing system, with
+strong support for many panes and tabs inside one master window. That
+layout is what makes it good for agent work: several agents run side by
+side, each in its own pane, all visible at once from one window.
+
+vivo drives agents through it. Every agent vivo launches gets a cmux
+surface, and vivo talks to the running app over a Unix socket to create,
+move and read them. Without cmux there is nowhere for an agent to live.
+TXT
+}
+
 # --- detect (local only) --------------------------------------------------
 
 found=""
@@ -120,8 +133,10 @@ if [ "$status" = "$VS_STATUS_OK" ]; then
     if [ -n "$latest" ] && vs_vercmp_lt "$version" "$latest"; then
         vs_note "update it from inside the app when convenient"
     fi
+    about
     exit 0
 fi
 
 vs_note "$fix"
+about
 exit "$VS_RC_BLOCKED"
