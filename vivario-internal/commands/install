@@ -16,64 +16,41 @@ if [ "$VS_ACTION" = help ]; then
     exit 0
 fi
 
-HERE=$(dirname "$0")
+HERE=$(cd "$(dirname "$0")" && pwd)
 INTERNAL=$(dirname "$HERE")
-PREREQ="$HERE/prerequisite"
-SEQUENCE="$INTERNAL/install-sequence"
 
-# --- plan first, always ---------------------------------------------------
+# Plan first, always. analyze reports its finding through its exit status, so
+# there is no second pass over the leaves here -- which would have re-run every
+# detection and every network lookup just to recount what was already counted.
+rc=0
+VS_SUPPRESS_NEXT_STEP=1 "$HERE/analyze" \
+    ${VS_VERBOSE:+--verbose} ${VS_DEBUG:+--debug} ${VS_OFFLINE:+--offline} || rc=$?
 
-"$HERE/analyze" ${VS_VERBOSE:+--verbose} ${VS_DEBUG:+--debug} ${VS_OFFLINE:+--offline} || true
-
-work=0
-blocked=0
-vs_ordered_prerequisites "$INTERNAL" | while IFS= read -r leaf; do
-    rc=0
-    "$leaf" --install --dry-run >/dev/null 2>&1 || rc=$?
-    case "$rc" in
-        "$VS_RC_WORK")    work=$((work + 1)) ;;
-        "$VS_RC_BLOCKED") blocked=$((blocked + 1)) ;;
-    esac
-done
-
-printf '\n'
-if [ "$work" -eq 0 ]; then
-    if [ "$blocked" -gt 0 ]; then
-        if [ "$blocked" -eq 1 ]; then
-            printf 'nothing I can install -- 1 thing needs you, see above.\n'
-        else
-            printf 'nothing I can install -- %s things need you, see above.\n' "$blocked"
-        fi
+case "$rc" in
+    0)
+        printf '\n  Nothing to do.\n'
+        exit 0
+        ;;
+    "$VS_RC_BLOCKED")
+        printf '\n  Nothing I can install -- the items above need you.\n'
         exit 1
-    fi
-    printf 'everything is already in place. Nothing to do.\n'
-    exit 0
-fi
+        ;;
+esac
 
-if [ "$work" -eq 1 ]; then
-    printf '1 thing to do'
-else
-    printf '%s things to do' "$work"
-fi
-if [ "$blocked" -gt 0 ]; then
-    if [ "$blocked" -eq 1 ]; then
-        printf ', and 1 that needs you'
-    else
-        printf ', and %s that need you' "$blocked"
-    fi
-fi
-printf '.\n'
-
+# vs_confirm emits its own leading blank line.
 if ! vs_confirm "proceed?"; then
-    printf 'nothing done.\n'
+    printf '  Nothing done.\n'
     exit 1
 fi
 
-# --- act ------------------------------------------------------------------
-
 vs_heading "installing"
-rc=0
-vs_ordered_prerequisites "$INTERNAL" | while IFS= read -r leaf; do
-    VS_ASSUME_YES=1 "$leaf" --install || rc=1
-done
-exit "$rc"
+failed=0
+leaves=$(mktemp)
+trap 'rm -f "$leaves"' EXIT
+vs_ordered_prerequisites "$INTERNAL" > "$leaves"
+while IFS= read -r leaf; do
+    # Already confirmed once, for the whole plan.
+    VS_ASSUME_YES=1 "$leaf" --install ${VS_DEBUG:+--debug} ${VS_OFFLINE:+--offline} \
+        || failed=1
+done < "$leaves"
+exit "$failed"

@@ -1,0 +1,99 @@
+#!/usr/bin/env bash
+# description: whether this directory is inside an initialized vivario project
+set -euo pipefail
+. "$(dirname "$0")/../lib/common.sh"
+
+NAME=project
+# The same rule vivo itself uses: a project root is a directory containing
+# .vivario/project.toml, found by walking up from the working directory.
+MARKER=.vivario/project.toml
+
+usage() {
+    printf 'Usage: vivario-setup project [OPTIONS]\n\n'
+    printf '  Reports whether the working directory sits inside an initialized\n'
+    printf '  vivario project, by walking up for %s -- the same\n' "$MARKER"
+    printf '  rule vivo uses. Detection only: this does not create a project yet.\n\n'
+    vs_flag_help
+}
+
+about() {
+    vs_about <<'TXT'
+A vivario project is any directory containing .vivario/project.toml. vivo
+finds it by walking up from wherever you are, and refuses to run at all
+outside one -- so this has to be true before vivo is of any use.
+
+Each project has its own root and its own configuration. The
+prerequisites above are installed once per machine and shared; a project
+is per directory tree, and you can have as many as you like.
+TXT
+}
+
+# --- detect ---------------------------------------------------------------
+
+root=""
+name=""
+
+detect() {
+    local dir
+    dir=$(pwd)
+    while [ -n "$dir" ] && [ "$dir" != "/" ]; do
+        if [ -f "$dir/$MARKER" ]; then
+            root=$dir
+            name=${dir##*/}
+            vs_debug "project root: $root"
+            return 0
+        fi
+        dir=$(dirname "$dir")
+    done
+    if [ -f "/$MARKER" ]; then
+        root=/
+        name=/
+        return 0
+    fi
+    vs_debug "no $MARKER found walking up from $(pwd)"
+}
+
+# --- plan -----------------------------------------------------------------
+
+status=""
+detail=""
+fix=""
+
+plan() {
+    if [ -n "$root" ]; then
+        status=$VS_STATUS_OK
+        detail="already initialized"
+        return 0
+    fi
+    # Creating one is pipeline step 3 and is not built. Say so rather than
+    # implying this can be fixed here.
+    status=$VS_STATUS_MANUAL
+    detail="no project here"
+    fix="vivario-setup does not create projects yet; run this inside one"
+}
+
+# --- run ------------------------------------------------------------------
+
+vs_parse_args ${@+"$@"} || exit 2
+if [ "$VS_ACTION" = help ]; then
+    usage
+    exit 0
+fi
+if [ "$VS_ACTION" = notes ]; then
+    VS_NOTES=1
+    vs_note_name "$NAME"
+    about
+    exit 0
+fi
+
+detect
+plan
+
+vs_info "$NAME" "$status" "${name:+$name, }$detail"
+if [ "$status" = "$VS_STATUS_OK" ]; then
+    about
+    exit 0
+fi
+vs_note "$fix"
+about
+exit "$VS_RC_BLOCKED"

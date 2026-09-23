@@ -61,4 +61,17 @@ case "$debug_only" in
     *)                          t_ok  "--debug carries no explanation" ;;
 esac
 
+# analyze must report failure, not just print it. Its prerequisite loop used to
+# be a `while read` on a pipe -- a subshell -- so every count was discarded and it
+# always exited 0 however broken the machine was.
+clean=$(/bin/bash "$VS" analyze --offline 2>&1)
+t_rc  "analyze exits 0 when all is well" 0 /bin/bash "$VS" analyze --offline
+t_contains "summary names the machine state" "$clean" "Prerequisites are installed and ready"
+t_contains "summary names the project state" "$clean" "already initialized"
+
+# Outside a project it must say so and exit non-zero.
+outside=$(cd / && /bin/bash "$VS" analyze --offline 2>&1 || true)
+t_contains "outside a project it says so" "$outside" "Not inside a vivario project"
+t_rc  "outside a project it fails" 1 /bin/bash -c "cd / && '$VS' analyze --offline"
+
 t_summary

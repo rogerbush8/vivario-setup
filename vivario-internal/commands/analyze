@@ -5,8 +5,8 @@ set -euo pipefail
 
 usage() {
     printf 'Usage: vivario-setup analyze [OPTIONS]\n\n'
-    printf '  Reports this system, whether the network is usable, and the state of\n'
-    printf '  every prerequisite. Changes nothing.\n\n'
+    printf '  Reports this system, this project, and the state of every\n'
+    printf '  prerequisite, then summarises what to do next. Changes nothing.\n\n'
     vs_flag_help
 }
 
@@ -16,8 +16,9 @@ if [ "$VS_ACTION" = help ]; then
     exit 0
 fi
 
-HERE=$(dirname "$0")
-PREREQ="$HERE/prerequisite"
+HERE=$(cd "$(dirname "$0")" && pwd)
+INTERNAL=$(dirname "$HERE")
+PAYLOAD=$(dirname "$INTERNAL")
 
 # --- system ---------------------------------------------------------------
 
@@ -41,20 +42,39 @@ case "$net_rc" in
     *) vs_info "network" "absent" "checks are still correct, just less detailed" ;;
 esac
 if [ "$net_rc" -ne 0 ]; then
-    # Save every child a doomed five-second wait.
+    # Save every child a doomed wait.
     export VS_OFFLINE=1
 fi
+
+# --- project --------------------------------------------------------------
+
+vs_heading "project"
+project_rc=0
+"$HERE/project" ${VS_DEBUG:+--debug} || project_rc=$?
 
 # --- prerequisites --------------------------------------------------------
 
 vs_heading "prerequisites"
-rc=0
-# Same order install will use, so the plan reads as the plan.
-vs_ordered_prerequisites "$(dirname "$HERE")" | while IFS= read -r leaf; do
-    # Flags have to be forwarded explicitly: each leaf is its own process and
+
+# Redirected from a file rather than piped: a `while read` on the end of a pipe
+# runs in a subshell, so every count set inside it would be discarded on exit --
+# which silently made this command always report success.
+leaves=$(mktemp)
+trap 'rm -f "$leaves"' EXIT
+vs_ordered_prerequisites "$INTERNAL" > "$leaves"
+
+work=0
+blocked=0
+while IFS= read -r leaf; do
+    rc=0
+    # Flags must be forwarded explicitly: each leaf is its own process and
     # inherits nothing it was not handed.
-    "$leaf" --install --dry-run ${VS_DEBUG:+--debug} ${VS_OFFLINE:+--offline} || true
-done
+    "$leaf" --install --dry-run ${VS_DEBUG:+--debug} ${VS_OFFLINE:+--offline} || rc=$?
+    case "$rc" in
+        "$VS_RC_WORK")    work=$((work + 1)) ;;
+        "$VS_RC_BLOCKED") blocked=$((blocked + 1)) ;;
+    esac
+done < "$leaves"
 
 # --- notes ----------------------------------------------------------------
 #
@@ -63,8 +83,8 @@ done
 # detection.
 if [ -n "${VS_VERBOSE:-}" ]; then
     vs_heading "notes"
+    vs_note_name "homebrew"
     if [ -n "$brew_prefix" ]; then
-        vs_note_name "homebrew"
         VS_NOTES=1 vs_about <<'TXT'
 You have Homebrew installed, which is an optional macOS package manager.
 Vivario doesn't require or install it. However, if a prerequisite was
@@ -72,16 +92,72 @@ installed by Homebrew, Vivario *must* use Homebrew to upgrade that
 prerequisite -- which is why you are seeing it in this list.
 TXT
     else
-        vs_note_name "homebrew"
         VS_NOTES=1 vs_about <<'TXT'
 Homebrew is an optional macOS package manager. You don't have it, and
 Vivario neither requires nor installs it. Each prerequisite will be
 installed using its own installer instead.
 TXT
     fi
-    vs_ordered_prerequisites "$(dirname "$HERE")" | while IFS= read -r leaf; do
+    "$HERE/project" --notes || true
+    while IFS= read -r leaf; do
         "$leaf" --notes || true
-    done
+    done < "$leaves"
 fi
 
-exit "$rc"
+# --- summary --------------------------------------------------------------
+
+vs_heading "summary"
+
+if [ "$work" -eq 0 ] && [ "$blocked" -eq 0 ]; then
+    printf '  Prerequisites are installed and ready\n'
+elif [ "$work" -gt 0 ]; then
+    if [ "$work" -eq 1 ]; then
+        printf '  1 prerequisite to install or upgrade'
+    else
+        printf '  %s prerequisites to install or upgrade' "$work"
+    fi
+    if [ "$blocked" -gt 0 ]; then
+        printf ', %s needing you' "$blocked"
+    fi
+    printf '\n'
+elif [ "$blocked" -eq 1 ]; then
+    printf '  1 prerequisite needs you to act\n'
+else
+    printf '  %s prerequisites need you to act\n' "$blocked"
+fi
+
+if [ "$project_rc" -eq 0 ]; then
+    printf '  In pre-existing project, already initialized\n'
+else
+    printf '  Not inside a vivario project\n'
+fi
+
+if [ -n "${VS_SUPPRESS_NEXT_STEP:-}" ]; then
+    # install is about to prompt; telling the user to run install would be odd.
+    if [ "$work" -gt 0 ]; then
+        exit "$VS_RC_WORK"
+    fi
+    if [ "$blocked" -gt 0 ] || [ "$project_rc" -ne 0 ]; then
+        exit "$VS_RC_BLOCKED"
+    fi
+    exit 0
+fi
+
+printf '\n'
+if [ "$work" -gt 0 ]; then
+    printf '  To install what is missing:  %% ./vivario-setup install\n'
+elif [ "$blocked" -gt 0 ] || [ "$project_rc" -ne 0 ]; then
+    printf '  Resolve the items above, then run this again.\n'
+elif [ -x "$PAYLOAD/vivario-start" ]; then
+    printf '  To start vivario:  %% ./vivario-start\n'
+else
+    # Do not point at something that is not there.
+    printf '  Everything is ready. vivario-start is not in this payload yet.\n'
+fi
+
+if [ "$work" -gt 0 ]; then
+    exit "$VS_RC_WORK"
+fi
+if [ "$blocked" -gt 0 ] || [ "$project_rc" -ne 0 ]; then
+    exit "$VS_RC_BLOCKED"
+fi

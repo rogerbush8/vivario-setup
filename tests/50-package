@@ -34,15 +34,19 @@ fi
 
 # Extract over a directory that already has the user's own files.
 PROJ=$TMP/already-a-project
-mkdir -p "$PROJ/src"
+mkdir -p "$PROJ/src" "$PROJ/.vivario"
 printf 'MINE\n' > "$PROJ/README.md"
 printf '9.9.9\n' > "$PROJ/VERSION"
 printf 'mine\n'  > "$PROJ/src/app.py"
+# A real project marker, so this covers the intended case: extracting into a
+# directory that is already an initialized vivario project.
+printf '[project]\nname = "already-a-project"\n' > "$PROJ/.vivario/project.toml"
 ( cd "$PROJ" && tar xzf "$TARBALL" )
 
 t_is "user README survived"  "$(cat "$PROJ/README.md")"   "MINE"
 t_is "user VERSION survived" "$(cat "$PROJ/VERSION")"     "9.9.9"
 t_is "user source survived"  "$(cat "$PROJ/src/app.py")"  "mine"
+t_contains "existing .vivario untouched" "$(cat "$PROJ/.vivario/project.toml")" "already-a-project"
 
 # The archive must carry the exec bit; a post-extract fixup would be too late.
 if [ -x "$PROJ/vivario-setup" ]; then
