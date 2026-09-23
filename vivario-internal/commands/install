@@ -27,8 +27,10 @@ VS_SUPPRESS_NEXT_STEP=1 "$HERE/analyze" \
     ${VS_VERBOSE:+--verbose} ${VS_DEBUG:+--debug} ${VS_OFFLINE:+--offline} || rc=$?
 
 case "$rc" in
+    "$VS_RC_WORK"|"$VS_RC_UPGRADE")
+        ;;
     0)
-        printf '\n  Nothing to do.\n'
+        # analyze has already said everything is ready and how to start.
         exit 0
         ;;
     "$VS_RC_BLOCKED")

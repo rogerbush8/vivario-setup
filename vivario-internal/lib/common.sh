@@ -191,7 +191,11 @@ vs_resolve() {
 # output. Keeps the plan and the action reading from the same channel.
 VS_RC_OK=0          # nothing to do
 VS_RC_BLOCKED=1     # needs a human; we cannot do it
-VS_RC_WORK=10       # work is pending and we can do it
+VS_RC_WORK=10       # an install is pending and we can do it
+VS_RC_UPGRADE=11    # an upgrade is pending and we can do it
+
+# Install and upgrade are separated so a caller can say "3 installs" accurately
+# rather than guessing, or hedging with a word that covers both.
 
 # Status words. "ready" rather than "ok" because ok does not say whether anything
 # was DONE -- and for a tool that is safe to re-run, the common case is that

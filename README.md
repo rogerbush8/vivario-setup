@@ -33,8 +33,8 @@ project
 
 --------------------------------------------------------------------------------
 summary
-  Prerequisites:       ok       no action, already installed
-  Project:             ok       no action, already initialized
+  Prerequisites:       ok     -           already installed
+  Project:             ok     -           already initialized
 
   Vivario is ready to run.  To start:  % ./vivario-start
 ```

@@ -165,9 +165,10 @@ vs_note "$fix"
 about
 
 if [ "$VS_ACTION" != install ] || [ -n "$VS_DRY_RUN" ]; then
-    if [ "$action" = "$VS_ACT_NEEDS_YOU" ]; then
-        exit "$VS_RC_BLOCKED"
-    fi
+    case "$action" in
+        "$VS_ACT_NEEDS_YOU")     exit "$VS_RC_BLOCKED" ;;
+        "$VS_ACT_NEEDS_UPGRADE") exit "$VS_RC_UPGRADE" ;;
+    esac
     exit "$VS_RC_WORK"
 fi
 

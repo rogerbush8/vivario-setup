@@ -32,7 +32,7 @@ sys_rc=0
 
 if [ "$sys_rc" = "$VS_RC_BLOCKED" ]; then
     vs_heading "summary"
-    printf '  %-21s%-9s%s\n' "System:" "blocked" "the OS must be updated first"
+    vs_info "System:" "$VS_NOT_OK" "needs you" "the OS must be updated first"
     printf '\n  Nothing else was checked -- update macOS, then run this again.\n'
     exit "$VS_RC_BLOCKED"
 fi
@@ -55,7 +55,8 @@ leaves=$(mktemp)
 trap 'rm -f "$leaves"' EXIT
 vs_ordered_prerequisites "$INTERNAL" > "$leaves"
 
-work=0
+installs=0
+upgrades=0
 blocked=0
 while IFS= read -r leaf; do
     rc=0
@@ -63,10 +64,12 @@ while IFS= read -r leaf; do
     # inherits nothing it was not handed.
     "$leaf" --install --dry-run ${FLAGS} || rc=$?
     case "$rc" in
-        "$VS_RC_WORK")    work=$((work + 1)) ;;
+        "$VS_RC_WORK")    installs=$((installs + 1)) ;;
+        "$VS_RC_UPGRADE") upgrades=$((upgrades + 1)) ;;
         "$VS_RC_BLOCKED") blocked=$((blocked + 1)) ;;
     esac
 done < "$leaves"
+work=$((installs + upgrades))
 
 # --- project --------------------------------------------------------------
 
@@ -92,58 +95,59 @@ fi
 
 vs_heading "summary"
 
-# vs_summary LABEL STATE DETAIL -- one scope per line, so they read as a set.
-vs_summary() {
-    printf '  %-21s%-9s%s\n' "$1:" "$2" "$3"
+plural() {
+    if [ "$1" -eq 1 ]; then
+        printf '1 %s\n' "$2"
+    else
+        printf '%s %ss\n' "$1" "$2"
+    fi
 }
 
 if [ "$work" -eq 0 ] && [ "$blocked" -eq 0 ]; then
-    vs_summary "Prerequisites" "$VS_OK" "no action, already installed"
+    vs_info "Prerequisites:" "$VS_OK" "$VS_ACT_NONE" "already installed"
 elif [ "$work" -gt 0 ]; then
-    if [ "$work" -eq 1 ]; then
-        detail="1 to install or upgrade"
+    if [ "$upgrades" -eq 0 ]; then
+        act=$(plural "$installs" install)
+    elif [ "$installs" -eq 0 ]; then
+        act=$(plural "$upgrades" upgrade)
     else
-        detail="$work to install or upgrade"
+        act=$(plural "$work" action)
+        detail="$(plural "$installs" install), $(plural "$upgrades" upgrade)"
     fi
+    vs_info "Prerequisites:" "$VS_NOT_OK" "$act" "${detail:-}"
     if [ "$blocked" -gt 0 ]; then
-        detail="$detail, $blocked needing you"
+        vs_info "" "$VS_NOT_OK" "needs you" "$(plural "$blocked" item)"
     fi
-    vs_summary "Prerequisites" "action" "$detail"
-elif [ "$blocked" -eq 1 ]; then
-    vs_summary "Prerequisites" "blocked" "1 needs you to act"
 else
-    vs_summary "Prerequisites" "blocked" "$blocked need you to act"
+    vs_info "Prerequisites:" "$VS_NOT_OK" "needs you" "$(plural "$blocked" item)"
 fi
 
 if [ "$project_rc" -eq 0 ]; then
-    vs_summary "Project" "$VS_OK" "no action, already initialized"
+    vs_info "Project:" "$VS_OK" "$VS_ACT_NONE" "already initialized"
 else
-    vs_summary "Project" "blocked" "no initialized project here"
+    vs_info "Project:" "$VS_NOT_OK" "needs you" "no project here"
 fi
 
-if [ -n "${VS_SUPPRESS_NEXT_STEP:-}" ]; then
-    # install is about to prompt; telling the user to run install would be odd.
-    if [ "$work" -gt 0 ]; then
-        exit "$VS_RC_WORK"
-    fi
-    if [ "$blocked" -gt 0 ] || [ "$project_rc" -ne 0 ]; then
-        exit "$VS_RC_BLOCKED"
-    fi
-    exit 0
-fi
-
-printf '\n'
+# What to do next.
+#
+# install sets VS_SUPPRESS_NEXT_STEP because telling the reader to run install
+# immediately before install prompts them would be absurd. It suppresses the
+# SUGGESTION only -- when there is nothing to do no prompt is coming, so the
+# ready line always prints. Suppressing that too is what made bare
+# `vivario-setup` -- the main entry point -- end on "Nothing to do." and never
+# say the one thing the reader wants.
 if [ "$work" -gt 0 ]; then
-    printf '  To install what is missing:  %% ./vivario-setup install\n'
-elif [ "$blocked" -gt 0 ] || [ "$project_rc" -ne 0 ]; then
-    printf '  Resolve the items above, then run this again.\n'
-else
-    printf '  Vivario is ready to run.  To start:  %% ./vivario-start\n'
-fi
-
-if [ "$work" -gt 0 ]; then
+    if [ -z "${VS_SUPPRESS_NEXT_STEP:-}" ]; then
+        printf '\n  To install what is missing:  %% ./vivario-setup install\n'
+    fi
     exit "$VS_RC_WORK"
 fi
+
 if [ "$blocked" -gt 0 ] || [ "$project_rc" -ne 0 ]; then
+    if [ -z "${VS_SUPPRESS_NEXT_STEP:-}" ]; then
+        printf '\n  Resolve the items above, then run this again.\n'
+    fi
     exit "$VS_RC_BLOCKED"
 fi
+
+printf '\n  Vivario is ready to run.  To start:  %% ./vivario-start\n'
