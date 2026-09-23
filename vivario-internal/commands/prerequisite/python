@@ -50,13 +50,14 @@ detect() {
 
 # --- plan -----------------------------------------------------------------
 
-status=""
+state=""
+action=""
 detail=""
 fix=""
 
 plan() {
-    # uv is the preferred source because it is already a prerequisite, ordered
-    # ahead of this one, and needs no package manager of its own.
+    # uv is the preferred source: already a prerequisite, ordered ahead of this
+    # one, and needing no package manager of its own.
     if have_cmd uv; then
         fix="uv python install $PYTHON_MIN"
     elif have_cmd brew; then
@@ -66,19 +67,22 @@ plan() {
     fi
 
     if [ -z "$found" ]; then
-        status=$VS_STATUS_INSTALL
-        detail="not found; will install $PYTHON_MIN"
+        state=$VS_NOT_OK
+        action=$VS_ACT_NEEDS_INSTALL
+        detail="will install $PYTHON_MIN"
         return 0
     fi
     if vs_vercmp_lt "$version" "$PYTHON_MIN"; then
         # Deliberately an install, not an upgrade: replacing the interpreter
-        # that is already there would break whatever else depends on it.
-        status=$VS_STATUS_INSTALL
-        detail="$version is older than $PYTHON_MIN; will install one alongside it"
+        # already there would break whatever else depends on it.
+        state=$VS_NOT_OK
+        action=$VS_ACT_NEEDS_INSTALL
+        detail="older than $PYTHON_MIN; will add one alongside it"
         return 0
     fi
-    status=$VS_STATUS_OK
-    detail="installed $(vs_method_label "$method")"
+    state=$VS_OK
+    action=$VS_ACT_NONE
+    detail="$(vs_method_label "$method")"
 }
 
 # --- run ------------------------------------------------------------------
@@ -100,9 +104,9 @@ fi
 detect
 plan
 
-vs_report "$NAME" "$version" "$status" "$detail"
+vs_report "$NAME" "$version" "$state" "$action" "$detail"
 
-if [ "$status" = "$VS_STATUS_OK" ]; then
+if [ "$state" = "$VS_OK" ]; then
     about
     exit 0
 fi
@@ -115,7 +119,7 @@ if [ "$VS_ACTION" != install ] || [ -n "$VS_DRY_RUN" ]; then
 fi
 
 if ! vs_confirm "run: $fix"; then
-    vs_report "$NAME" "" "skipped" "not confirmed"
+    vs_report "$NAME" "$version" "$VS_NOT_OK" "$VS_ACT_NEEDS_YOU" "not confirmed"
     exit "$VS_RC_BLOCKED"
 fi
 
@@ -123,5 +127,6 @@ vs_debug "running: $fix"
 eval "$fix"
 detect
 plan
-vs_report "$NAME" "$version" "$status" "$detail"
-[ "$status" = "$VS_STATUS_OK" ]
+action=$VS_ACT_INSTALLED
+vs_report "$NAME" "$version" "$state" "$action" "$detail"
+[ "$state" = "$VS_OK" ]

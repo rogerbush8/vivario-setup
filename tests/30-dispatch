@@ -66,12 +66,37 @@ esac
 # always exited 0 however broken the machine was.
 clean=$(/bin/bash "$VS" analyze --offline 2>&1)
 t_rc  "analyze exits 0 when all is well" 0 /bin/bash "$VS" analyze --offline
-t_contains "summary names the machine state" "$clean" "Prerequisites are installed and ready"
-t_contains "summary names the project state" "$clean" "already initialized"
+t_contains "summary has a prerequisites line" "$clean" "Prerequisites:"
+t_contains "summary has a project line"       "$clean" "Project:"
+t_contains "a clean machine reads as ready"   "$clean" "ready"
 
 # Outside a project it must say so and exit non-zero.
 outside=$(cd / && /bin/bash "$VS" analyze --offline 2>&1 || true)
-t_contains "outside a project it says so" "$outside" "Not inside a vivario project"
+t_contains "outside a project the marker is reported" "$outside" "project.toml"
+case "$outside" in
+    *"Project:"*ready*) t_bad "outside a project it still claims ready" ;;
+    *)                  t_ok  "outside a project it does not claim ready" ;;
+esac
 t_rc  "outside a project it fails" 1 /bin/bash -c "cd / && '$VS' analyze --offline"
+
+# The action column is what makes a no-op obvious. Asserted structurally: a clean
+# run must say "none" and must not claim any work was needed.
+t_contains "clean run says no action needed" "$clean" "none"
+case "$clean" in
+    *"needs "*) t_bad "clean run claims work is needed" ;;
+    *)          t_ok  "clean run claims no work" ;;
+esac
+
+# The OS is a gate: when it fails nothing downstream is even reported.
+gate=$(mktemp -d)
+cp -R "$ROOT/vivario-setup" "$ROOT/vivario-internal" "$gate/"
+sed -i '' 's/^MACOS_MIN=.*/MACOS_MIN=99.0/' "$gate/vivario-internal/commands/system"
+gated=$(/bin/bash "$gate/vivario-setup" analyze --offline 2>&1 || true)
+t_rc "a too-old OS fails" 1 /bin/bash "$gate/vivario-setup" analyze --offline
+case "$gated" in
+    *prerequisites*) t_bad "OS gate did not stop before prerequisites" ;;
+    *)               t_ok  "OS gate stops before prerequisites" ;;
+esac
+rm -rf "$gate"
 
 t_summary

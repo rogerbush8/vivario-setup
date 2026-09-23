@@ -79,24 +79,27 @@ enrich() {
 
 # --- plan -----------------------------------------------------------------
 
-status=""
+state=""
+action=""
 detail=""
 fix=""
 
 plan() {
     if [ -z "$found" ]; then
-        status=$VS_STATUS_INSTALL
+        state=$VS_NOT_OK
+        action=$VS_ACT_NEEDS_INSTALL
         if have_cmd brew; then
-            detail="not found; will install with Homebrew"
+            detail="will install with Homebrew"
             fix="brew install uv"
         else
-            detail="not found; will install with the standalone installer"
+            detail="will install with the standalone installer"
             fix="curl -LsSf https://astral.sh/uv/install.sh | sh"
         fi
         return 0
     fi
     if vs_vercmp_lt "$version" "$UV_MIN"; then
-        status=$VS_STATUS_UPGRADE
+        state=$VS_NOT_OK
+        action=$VS_ACT_NEEDS_UPGRADE
         # The upgrade command follows how uv was installed. Guessing here is how
         # a machine ends up with two uvs on PATH.
         case "$method" in
@@ -109,21 +112,21 @@ plan() {
                 fix="uv self update"
                 ;;
             *)
-                status=$VS_STATUS_MANUAL
+                action=$VS_ACT_NEEDS_YOU
                 detail="older than $UV_MIN, installed by an unknown method"
                 fix="upgrade uv however it was installed, then re-run"
                 ;;
         esac
         return 0
     fi
-    status=$VS_STATUS_OK
-    detail="installed $(vs_method_label "$method")"
+    state=$VS_OK
+    action=$VS_ACT_NONE
+    detail="$(vs_method_label "$method")"
     if [ -n "$latest" ]; then
         if vs_vercmp_lt "$version" "$latest"; then
             detail="$detail ($latest available)"
         fi
     else
-        # "Could not check" must not read the same as "nothing newer".
         case "$latest_state" in
             offline)     detail="$detail (latest not checked)" ;;
             unreachable) detail="$detail (latest unknown, no network)" ;;
@@ -151,9 +154,9 @@ detect
 enrich
 plan
 
-vs_report "$NAME" "$version" "$status" "$detail"
+vs_report "$NAME" "$version" "$state" "$action" "$detail"
 
-if [ "$status" = "$VS_STATUS_OK" ]; then
+if [ "$state" = "$VS_OK" ]; then
     about
     exit 0
 fi
@@ -162,26 +165,32 @@ vs_note "$fix"
 about
 
 if [ "$VS_ACTION" != install ] || [ -n "$VS_DRY_RUN" ]; then
-    # verify and dry-run both stop here: they report, they never act.
-    if [ "$status" = "$VS_STATUS_MANUAL" ]; then
+    if [ "$action" = "$VS_ACT_NEEDS_YOU" ]; then
         exit "$VS_RC_BLOCKED"
     fi
     exit "$VS_RC_WORK"
 fi
 
-if [ "$status" = "$VS_STATUS_MANUAL" ]; then
+if [ "$action" = "$VS_ACT_NEEDS_YOU" ]; then
     exit "$VS_RC_BLOCKED"
 fi
 
 if ! vs_confirm "run: $fix"; then
-    printf '  %-11s %-10s %-9s %s\n' "$NAME" "" "skipped" "not confirmed"
-    exit 1
+    vs_report "$NAME" "$version" "$VS_NOT_OK" "$VS_ACT_NEEDS_YOU" "not confirmed"
+    exit "$VS_RC_BLOCKED"
 fi
 
+was=$action
 vs_debug "running: $fix"
 eval "$fix"
 detect
 enrich
 plan
-vs_report "$NAME" "$version" "$status" "$detail"
-[ "$status" = "$VS_STATUS_OK" ]
+# Report what was DONE, not merely that things are now fine.
+if [ "$was" = "$VS_ACT_NEEDS_UPGRADE" ]; then
+    action=$VS_ACT_UPGRADED
+else
+    action=$VS_ACT_INSTALLED
+fi
+vs_report "$NAME" "$version" "$state" "$action" "$detail"
+[ "$state" = "$VS_OK" ]

@@ -76,33 +76,36 @@ enrich() {
 
 # --- plan -----------------------------------------------------------------
 
-status=""
+state=""
+action=""
 detail=""
 fix=""
 
 plan() {
     if [ -z "$found" ]; then
         # Installing a signed .app means download, signature check, mount and
-        # copy. Sparkle already does that correctly; we do not reimplement it.
-        status=$VS_STATUS_MANUAL
-        detail="not found; install it yourself, then re-run"
+        # copy. cmux's own updater already does that; we do not reimplement it.
+        state=$VS_NOT_OK
+        action=$VS_ACT_NEEDS_YOU
+        detail="install it yourself, then re-run"
         fix="download $CMUX_DMG and drag cmux.app to /Applications"
         return 0
     fi
     if vs_vercmp_lt "$version" "$CMUX_MIN"; then
-        status=$VS_STATUS_MANUAL
+        state=$VS_NOT_OK
+        action=$VS_ACT_NEEDS_YOU
         detail="older than $CMUX_MIN"
         fix="update cmux from inside the app, then re-run"
         return 0
     fi
-    status=$VS_STATUS_OK
-    detail="installed $(vs_method_label "$method")"
+    state=$VS_OK
+    action=$VS_ACT_NONE
+    detail="$(vs_method_label "$method")"
     if [ -n "$latest" ]; then
         if vs_vercmp_lt "$version" "$latest"; then
             detail="$detail ($latest available)"
         fi
     else
-        # Say so, rather than letting "could not check" read as "nothing newer".
         case "$latest_state" in
             offline)     detail="$detail (latest not checked)" ;;
             unreachable) detail="$detail (latest unknown, no network)" ;;
@@ -130,12 +133,9 @@ detect
 enrich
 plan
 
-vs_report "$NAME" "$version" "$status" "$detail"
+vs_report "$NAME" "$version" "$state" "$action" "$detail"
 
-if [ "$status" = "$VS_STATUS_OK" ]; then
-    # An available update is information, not an instruction: cmux works, and the
-    # parenthetical on the row already says a newer one exists. How to get it is
-    # in the notes, where it does not read as nagging about optional work.
+if [ "$state" = "$VS_OK" ]; then
     about
     exit 0
 fi

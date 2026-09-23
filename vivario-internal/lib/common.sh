@@ -193,15 +193,34 @@ VS_RC_OK=0          # nothing to do
 VS_RC_BLOCKED=1     # needs a human; we cannot do it
 VS_RC_WORK=10       # work is pending and we can do it
 
-VS_STATUS_OK=ok
-VS_STATUS_INSTALL=install
-VS_STATUS_UPGRADE=upgrade
-VS_STATUS_MANUAL=manual
-VS_STATUS_MISSING=missing
+# Status words. "ready" rather than "ok" because ok does not say whether anything
+# was DONE -- and for a tool that is safe to re-run, the common case is that
+# nothing was, which the reader should be able to see at a glance rather than
+# infer from the summary.
+# A row carries a STATE and an ACTION, which answer different questions:
+#
+#   state    is this fine?        ok / --
+#   action   what needs doing,    none / needs install / needs upgrade / needs you
+#            or what was done     installed / upgraded
+#
+# The action column is what makes a clean run obviously a no-op: "none" says
+# nothing was done, rather than leaving the reader to infer it from the absence of
+# an error. After work is performed the same column reports what was done, so the
+# plan and the outcome are read in the same place.
+VS_OK=ok
+VS_NOT_OK=--
 
-# vs_report NAME VERSION STATUS [DETAIL]
+VS_ACT_NONE=none
+VS_ACT_NEEDS_INSTALL="needs install"
+VS_ACT_NEEDS_UPGRADE="needs upgrade"
+VS_ACT_NEEDS_YOU="needs you"
+VS_ACT_INSTALLED=installed
+VS_ACT_UPGRADED=upgraded
+
+# vs_report NAME VERSION VERDICT STATE [DETAIL]
+# vs_report NAME VERSION STATE ACTION [DETAIL]
 vs_report() {
-    printf '  %-11s %-10s %-9s %s\n' "$1" "${2:--}" "$3" "${4:-}"
+    printf '  %-11s %-8s %-6s %-14s %s\n' "$1" "${2:--}" "$3" "$4" "${5:-}"
 }
 
 # vs_info NAME STATUS [DETAIL] -- a row for something that has no version.
@@ -209,17 +228,28 @@ vs_report() {
 # The name spans the name AND version columns, since there is no version to show,
 # so a long name like ".vivario/project.toml" fits without pushing the status
 # column out of line with the rows above it.
+# vs_info NAME VERDICT STATE [DETAIL] -- for a row with no version. The name
+# spans the name and version columns so the verdict still lands in line.
+# vs_info NAME STATE ACTION [DETAIL] -- a row with no version; the name spans the
+# name and version columns so the state still lands in line.
 vs_info() {
-    printf '  %-22s %-9s %s\n' "$1" "$2" "${3:-}"
+    printf '  %-20s %-6s %-14s %s\n' "$1" "$2" "$3" "${4:-}"
 }
 
 # vs_note TEXT -- an indented continuation line under a report row.
 vs_note() {
-    printf '  %-11s %-10s %-9s %s\n' "" "" "" "$1"
+    printf '  %-11s %-8s %-6s %-14s %s\n' "" "" "" "" "$1"
 }
 
+# vs_heading TEXT -- a section banner.
+#
+# ASCII rather than box-drawing characters on purpose: this runs on machines
+# nothing has been set up on yet, where the terminal's encoding is not something
+# to assume.
+VS_RULE=------------------------------------------------------------
+
 vs_heading() {
-    printf '\n%s\n' "$1"
+    printf '\n%s\n%s\n' "$VS_RULE" "$1"
 }
 
 # vs_note_name NAME -- label a block in the notes section.

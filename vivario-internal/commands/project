@@ -79,30 +79,30 @@ detect() {
 
 # --- report ---------------------------------------------------------------
 
-status=""
+state=""
 fix=""
 
 report() {
     if [ -z "$has_dir" ]; then
-        vs_info ".vivario/" "absent" "nothing found above $(pwd)"
-        vs_info "$MARKER" "absent" "vivo will not run outside a project"
-        status=$VS_STATUS_MANUAL
+        vs_info ".vivario/" "$VS_NOT_OK" "$VS_ACT_NEEDS_YOU" "nothing found above $(vs_tilde "$(pwd)")"
+        vs_info "  project.toml" "$VS_NOT_OK" "$VS_ACT_NEEDS_YOU" "vivo will not run outside a project"
+        state=$VS_NOT_OK
         fix="vivario-setup does not create projects yet; run this inside one"
         return 0
     fi
 
-    vs_info ".vivario/" "ok" "$(vs_tilde "$root")"
+    vs_info ".vivario/" "$VS_OK" "$VS_ACT_NONE" "$(vs_tilde "$root")"
 
     if [ -z "$has_marker" ]; then
-        vs_info "$MARKER" "absent" "the directory exists but names no project"
-        status=$VS_STATUS_MANUAL
+        vs_info "  project.toml" "$VS_NOT_OK" "$VS_ACT_NEEDS_YOU" "the directory names no project"
+        state=$VS_NOT_OK
         fix="a .vivario/ without project.toml is not a project vivo accepts"
         return 0
     fi
 
-    vs_info "$MARKER" "ok" \
+    vs_info "  project.toml" "$VS_OK" "$VS_ACT_NONE" \
         "${proj_name:-unnamed}${proj_created:+, created $proj_created}"
-    status=$VS_STATUS_OK
+    state=$VS_OK
 }
 
 # --- run ------------------------------------------------------------------
@@ -122,7 +122,7 @@ fi
 detect
 report
 
-if [ "$status" = "$VS_STATUS_OK" ]; then
+if [ "$state" = "$VS_OK" ]; then
     about
     exit 0
 fi
