@@ -1,0 +1,40 @@
+#!/usr/bin/env bash
+# The dispatcher: argv walking, help at every level, flag forwarding.
+set -uo pipefail
+. "$(dirname "$0")/lib.sh"
+
+ROOT=$(cd "$(dirname "$0")/.." && pwd)
+VS="$ROOT/vivo-setup"
+
+t_rc "--version"                      0 /bin/bash "$VS" --version
+t_is "--version prints VERSION" \
+     "$(/bin/bash "$VS" --version)" "$(cat "$ROOT/vivo-setup-internal/VERSION")"
+
+t_rc "--help (top)"                   0 /bin/bash "$VS" --help
+t_rc "--help (group)"                 0 /bin/bash "$VS" prerequisite --help
+t_rc "--help (leaf)"                  0 /bin/bash "$VS" prerequisite uv --help
+
+t_rc "unknown command exits 2"        2 /bin/bash "$VS" nosuchthing
+t_rc "unknown subcommand exits 2"     2 /bin/bash "$VS" prerequisite nosuchthing
+t_rc "unknown flag exits 2"           2 /bin/bash "$VS" prerequisite uv --nosuchflag
+
+t_rc "analyze"                        0 /bin/bash "$VS" analyze --offline
+
+# Help is derived from each command's own header, not a registry.
+top=$(/bin/bash "$VS" --help)
+t_contains "top help lists analyze"      "$top" "analyze"
+t_contains "top help lists prerequisite" "$top" "prerequisite"
+grp=$(/bin/bash "$VS" prerequisite --help)
+t_contains "group help lists uv"   "$grp" "uv"
+t_contains "group help lists cmux" "$grp" "cmux"
+
+# A group forwards its flags to every child, so all children must accept them.
+fwd=$(/bin/bash "$VS" prerequisite --offline 2>&1 || true)
+t_contains "group forwards --offline to cmux" "$fwd" "not checked (offline)"
+t_contains "group reached uv too"             "$fwd" "uv"
+
+# A leaf documents its own flags -- the dispatcher must not intercept --help.
+leaf=$(/bin/bash "$VS" prerequisite uv --help)
+t_contains "leaf help shows its flags" "$leaf" "--dry-run"
+
+t_summary

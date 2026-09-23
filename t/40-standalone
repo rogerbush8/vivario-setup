@@ -1,0 +1,14 @@
+#!/usr/bin/env bash
+# A leaf must work run directly, not only through the dispatcher.
+set -uo pipefail
+. "$(dirname "$0")/lib.sh"
+
+ROOT=$(cd "$(dirname "$0")/.." && pwd)
+LEAF=$ROOT/vivo-setup-internal/commands/prerequisite/uv
+
+t_rc "absolute path, from /"        0 /bin/bash -c "cd / && '$LEAF' --offline"
+t_rc "relative from payload root"   0 /bin/bash -c "cd '$ROOT' && ./vivo-setup-internal/commands/prerequisite/uv --offline"
+t_rc "from the leaf's own directory" 0 /bin/bash -c "cd '$ROOT/vivo-setup-internal/commands/prerequisite' && ./uv --offline"
+t_rc "via the dispatcher, from /"   0 /bin/bash -c "cd / && '$ROOT/vivo-setup' prerequisite uv --offline"
+
+t_summary

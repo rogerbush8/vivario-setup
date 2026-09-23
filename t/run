@@ -1,0 +1,31 @@
+#!/usr/bin/env bash
+#
+# Run every test file under /bin/bash EXPLICITLY.
+#
+# Not `env bash`: the moment anyone installs a newer bash, that would resolve to
+# 5.x and the floor would stop being tested -- silently, with everything still
+# green. Naming the floor is the whole point.
+
+set -uo pipefail
+
+HERE=$(cd "$(dirname "$0")" && pwd)
+
+printf 'floor: %s\n\n' "$(/bin/bash --version | head -1)"
+
+pass=0
+fail=0
+for t in "$HERE"/[0-9]*-*; do
+    if [ ! -x "$t" ]; then
+        continue
+    fi
+    printf '%s\n' "${t##*/}"
+    if /bin/bash "$t"; then
+        pass=$((pass + 1))
+    else
+        fail=$((fail + 1))
+    fi
+    printf '\n'
+done
+
+printf '%s file(s) passed, %s failed\n' "$pass" "$fail"
+[ "$fail" -eq 0 ]

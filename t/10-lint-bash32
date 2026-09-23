@@ -1,0 +1,43 @@
+#!/usr/bin/env bash
+# Every shipped script parses under the floor, and uses nothing it lacks.
+set -uo pipefail
+. "$(dirname "$0")/lib.sh"
+
+ROOT=$(cd "$(dirname "$0")/.." && pwd)
+
+scripts() {
+    printf '%s\n' "$ROOT/vivo-setup"
+    find "$ROOT/vivo-setup-internal/commands" -type f -perm -u+x 2>/dev/null
+    printf '%s\n' "$ROOT/vivo-setup-internal/lib/common.sh"
+    printf '%s\n' "$ROOT/make-tarball.sh"
+}
+
+# 1. Parses under 3.2.
+for f in $(scripts); do
+    t_rc "parses: ${f#$ROOT/}" 0 /bin/bash -n "$f"
+done
+
+# 2. Uses nothing 3.2 lacks.
+#
+# Full-line comments are excluded so documentation may name these; code may not.
+# The first group fails SILENTLY on 3.2 with wrong answers and exit 0, which is
+# why grepping matters more than review here.
+banned_silent='declare[[:space:]]+-A|local[[:space:]]+-A|@Q\}|@U\}|@L\}'
+banned_loud='mapfile|readarray|,,\}|\^\^\}|globstar|lastpipe|coproc|&>>|\[-1\]|declare[[:space:]]+-n|local[[:space:]]+-n|wait[[:space:]]+-n|EPOCHSECONDS|EPOCHREALTIME|SRANDOM'
+# Not bash, but equally absent at this baseline: BSD userland, no GNU coreutils.
+banned_gnu='readlink[[:space:]]+-f|sort[[:space:]]+-V|grep[[:space:]]+-P|stat[[:space:]]+-c|date[[:space:]]+-d'
+
+for f in $(scripts); do
+    code=$(command grep -vE '^[[:space:]]*#' "$f")
+    for group in silent loud gnu; do
+        eval "pattern=\$banned_$group"
+        hit=$(printf '%s\n' "$code" | command grep -nE "$pattern" || true)
+        if [ -z "$hit" ]; then
+            t_ok "no bash4/gnu ($group): ${f#$ROOT/}"
+        else
+            t_bad "${f#$ROOT/} uses a banned construct ($group): $hit"
+        fi
+    done
+done
+
+t_summary

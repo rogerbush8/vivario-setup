@@ -1,0 +1,55 @@
+#!/usr/bin/env bash
+# Packaging: two prefixed entries, exec bits carried, nothing of the user's lost.
+set -uo pipefail
+. "$(dirname "$0")/lib.sh"
+
+ROOT=$(cd "$(dirname "$0")/.." && pwd)
+TMP=$(mktemp -d)
+trap 'rm -rf "$TMP"' EXIT
+
+t_rc "make-tarball.sh runs" 0 /bin/bash "$ROOT/make-tarball.sh" "$TMP"
+TARBALL=$(find "$TMP" -name '*.tar.gz' | head -1)
+
+listing=$(tar tzf "$TARBALL")
+t_contains "ships the dispatcher" "$listing" "vivo-setup"
+t_contains "ships the internals"  "$listing" "vivo-setup-internal/lib/common.sh"
+
+# Repo-only files must not leak into the payload.
+for leak in ".git" "README.md" "ARCHITECTURE.md" "make-tarball.sh" "t/" "dist/"; do
+    if printf '%s\n' "$listing" | command grep -q "^$leak"; then
+        t_bad "payload leaked $leak"
+    else
+        t_ok "payload excludes $leak"
+    fi
+done
+
+# Every top-level entry must carry the prefix, or it can overwrite user files.
+tops=$(printf '%s\n' "$listing" | sed 's|/.*||' | sort -u)
+unprefixed=$(printf '%s\n' "$tops" | command grep -v '^vivo-setup' || true)
+if [ -z "$unprefixed" ]; then
+    t_ok "every top-level entry is prefixed"
+else
+    t_bad "unprefixed top-level entries would clobber user files: $unprefixed"
+fi
+
+# Extract over a directory that already has the user's own files.
+PROJ=$TMP/already-a-project
+mkdir -p "$PROJ/src"
+printf 'MINE\n' > "$PROJ/README.md"
+printf '9.9.9\n' > "$PROJ/VERSION"
+printf 'mine\n'  > "$PROJ/src/app.py"
+( cd "$PROJ" && tar xzf "$TARBALL" )
+
+t_is "user README survived"  "$(cat "$PROJ/README.md")"   "MINE"
+t_is "user VERSION survived" "$(cat "$PROJ/VERSION")"     "9.9.9"
+t_is "user source survived"  "$(cat "$PROJ/src/app.py")"  "mine"
+
+# The archive must carry the exec bit; a post-extract fixup would be too late.
+if [ -x "$PROJ/vivo-setup" ]; then
+    t_ok "dispatcher is executable after extraction"
+else
+    t_bad "dispatcher lost its exec bit in the archive"
+fi
+t_rc "runs from where it landed" 0 /bin/bash -c "cd '$PROJ' && ./vivo-setup analyze --offline"
+
+t_summary
