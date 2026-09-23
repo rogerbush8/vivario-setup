@@ -78,7 +78,7 @@ plan() {
         return 0
     fi
     status=$VS_STATUS_OK
-    detail="via $method"
+    detail="installed $(vs_method_label "$method")"
 }
 
 # --- run ------------------------------------------------------------------

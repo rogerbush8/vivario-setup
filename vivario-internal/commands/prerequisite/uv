@@ -6,6 +6,9 @@ set -euo pipefail
 NAME=uv
 # PROVISIONAL floor -- deliberately low. This checks adequacy, not currency.
 UV_MIN=0.5.0
+# Where "newest" comes from. Unauthenticated and rate-limited, so a failure here
+# must stay harmless: it is enrichment, never a verdict.
+UV_RELEASES=https://api.github.com/repos/astral-sh/uv/releases/latest
 
 usage() {
     printf 'Usage: vivario-setup prerequisite uv [OPTIONS]\n\n'
@@ -52,6 +55,28 @@ detect() {
     vs_debug "install method: $method"
 }
 
+# --- enrich (network, optional) -------------------------------------------
+
+latest=""
+latest_state=""
+
+enrich() {
+    if [ -z "$found" ]; then
+        # Nothing to compare against; the verdict is already known locally.
+        return 0
+    fi
+    local body rc=0 tag
+    body=$(vs_fetch "$UV_RELEASES") || rc=$?
+    latest_state=$(vs_fetch_state "$rc")
+    if [ -z "$body" ]; then
+        vs_debug "latest version unknown ($latest_state)"
+        return 0
+    fi
+    tag=$(awk -F'"' '/"tag_name"/{print $4; exit}' <<< "$body")
+    latest=${tag#v}
+    vs_debug "latest per github releases: ${latest:-unknown}"
+}
+
 # --- plan -----------------------------------------------------------------
 
 status=""
@@ -92,7 +117,18 @@ plan() {
         return 0
     fi
     status=$VS_STATUS_OK
-    detail="released $released, via $method"
+    detail="installed $(vs_method_label "$method")"
+    if [ -n "$latest" ]; then
+        if vs_vercmp_lt "$version" "$latest"; then
+            detail="$detail ($latest available)"
+        fi
+    else
+        # "Could not check" must not read the same as "nothing newer".
+        case "$latest_state" in
+            offline)     detail="$detail (latest not checked)" ;;
+            unreachable) detail="$detail (latest unknown, no network)" ;;
+        esac
+    fi
 }
 
 # --- run ------------------------------------------------------------------
@@ -112,6 +148,7 @@ if [ "$VS_ACTION" = notes ]; then
 fi
 
 detect
+enrich
 plan
 
 vs_report "$NAME" "$version" "$status" "$detail"
@@ -144,6 +181,7 @@ fi
 vs_debug "running: $fix"
 eval "$fix"
 detect
+enrich
 plan
 vs_report "$NAME" "$version" "$status" "$detail"
 [ "$status" = "$VS_STATUS_OK" ]

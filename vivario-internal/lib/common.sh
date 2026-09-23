@@ -125,6 +125,22 @@ vs_install_method() {
     esac
 }
 
+# vs_method_label METHOD -- how to say a method to a person.
+#
+# The classification names are for code; some of them ("app-bundle") mean nothing
+# to a reader. Rows say the label, --debug says the classification.
+vs_method_label() {
+    # The label carries its own preposition: "installed via homebrew" is right,
+    # "installed via a macOS app" is not -- the app IS the install.
+    case "$1" in
+        homebrew)   printf 'via homebrew\n' ;;
+        pyenv)      printf 'via pyenv\n' ;;
+        standalone) printf 'via its own installer\n' ;;
+        app-bundle) printf 'as a macOS app\n' ;;
+        *)          printf 'by an unknown method\n' ;;
+    esac
+}
+
 # vs_resolve PATH -- follow symlinks one hop at a time.
 #
 # `readlink -f` is unavailable on older macOS and on true BSD, so it cannot be

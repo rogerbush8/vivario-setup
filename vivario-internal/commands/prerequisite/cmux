@@ -26,6 +26,10 @@ about() {
     vs_about <<'TXT'
 cmux is a fast, GPU-rendered macOS terminal and windowing system, with
 strong support for agentic development.
+
+It updates itself from inside the app, so nothing here will upgrade it
+for you -- when a newer version is shown as available, take it at your
+own convenience.
 TXT
 }
 
@@ -92,21 +96,16 @@ plan() {
         return 0
     fi
     status=$VS_STATUS_OK
-    # The install method is deliberately not shown here. For uv it earns its
-    # place because it decides the upgrade command; for cmux it never does, and
-    # "app-bundle" means nothing to a reader. It stays available under --debug.
+    detail="installed $(vs_method_label "$method")"
     if [ -n "$latest" ]; then
         if vs_vercmp_lt "$version" "$latest"; then
-            detail="$latest available"
-        else
-            detail="newest"
+            detail="$detail ($latest available)"
         fi
     else
         # Say so, rather than letting "could not check" read as "nothing newer".
         case "$latest_state" in
-            offline)     detail="latest not checked (offline)" ;;
-            unreachable) detail="latest unknown (no network)" ;;
-            *)           detail="" ;;
+            offline)     detail="$detail (latest not checked)" ;;
+            unreachable) detail="$detail (latest unknown, no network)" ;;
         esac
     fi
 }
@@ -134,10 +133,9 @@ plan
 vs_report "$NAME" "$version" "$status" "$detail"
 
 if [ "$status" = "$VS_STATUS_OK" ]; then
-    # An available update is information, not a failure: cmux works.
-    if [ -n "$latest" ] && vs_vercmp_lt "$version" "$latest"; then
-        vs_note "update it from inside the app when convenient"
-    fi
+    # An available update is information, not an instruction: cmux works, and the
+    # parenthetical on the row already says a newer one exists. How to get it is
+    # in the notes, where it does not read as nagging about optional work.
     about
     exit 0
 fi

@@ -29,9 +29,17 @@ t_contains "group help lists uv"   "$grp" "uv"
 t_contains "group help lists cmux" "$grp" "cmux"
 
 # A group forwards its flags to every child, so all children must accept them.
-fwd=$(/bin/bash "$VS" prerequisite --offline 2>&1 || true)
-t_contains "group forwards --offline to cmux" "$fwd" "not checked (offline)"
-t_contains "group reached uv too"             "$fwd" "uv"
+# Asserted on behaviour rather than wording: --offline reaching the leaf means no
+# fetch is attempted, which --debug reports. Matching prose here would make this
+# test fail every time the report is reworded.
+fwd=$(/bin/bash "$VS" prerequisite --offline --debug 2>&1 || true)
+t_contains "group forwards --offline to a leaf" "$fwd" "offline: skipping"
+t_contains "group reached uv"                   "$fwd" "uv"
+t_contains "group reached cmux"                 "$fwd" "cmux"
+case "$fwd" in
+    *"fetching"*) t_bad "--offline did not suppress the fetch" ;;
+    *)            t_ok  "--offline suppressed every fetch" ;;
+esac
 
 # A leaf documents its own flags -- the dispatcher must not intercept --help.
 leaf=$(/bin/bash "$VS" prerequisite uv --help)
