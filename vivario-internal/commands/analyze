@@ -138,11 +138,12 @@ if [ "$work" -gt 0 ]; then
     printf '  To install what is missing:  %% ./vivario-setup install\n'
 elif [ "$blocked" -gt 0 ] || [ "$project_rc" -ne 0 ]; then
     printf '  Resolve the items above, then run this again.\n'
-elif [ -x "$PAYLOAD/vivario-start" ]; then
-    printf '  To start vivario:  %% ./vivario-start\n'
 else
-    # Do not point at something that is not there.
-    printf '  Everything is ready. vivario-start is not in this payload yet.\n'
+    printf '  Vivario is ready to run.  To start:  %% ./vivario-start\n'
+    if [ ! -x "$PAYLOAD/vivario-start" ]; then
+        # Still say so rather than silently pointing at a file that is not there.
+        printf '  (vivario-start is not in this payload yet)\n'
+    fi
 fi
 
 if [ "$work" -gt 0 ]; then
