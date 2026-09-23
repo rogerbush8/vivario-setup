@@ -25,13 +25,7 @@ usage() {
 about() {
     vs_about <<'TXT'
 cmux is a fast, GPU-rendered macOS terminal and windowing system, with
-strong support for many panes and tabs inside one master window. That
-layout is what makes it good for agent work: several agents run side by
-side, each in its own pane, all visible at once from one window.
-
-vivo drives agents through it. Every agent vivo launches gets a cmux
-surface, and vivo talks to the running app over a Unix socket to create,
-move and read them. Without cmux there is nowhere for an agent to live.
+strong support for agentic development.
 TXT
 }
 

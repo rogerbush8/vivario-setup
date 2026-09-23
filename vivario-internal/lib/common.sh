@@ -205,9 +205,13 @@ vs_about() {
     printf '\n'
 }
 
-# vs_debug TEXT -- only when --verbose asked for it.
+# vs_debug TEXT -- diagnostics, only under --debug.
+#
+# Separate from --verbose on purpose. --verbose explains what a thing is and why
+# it is wanted; --debug says what was actually run and what came back. Mixing
+# them makes the explanation unreadable and buries the diagnostics.
 vs_debug() {
-    if [ -n "${VS_VERBOSE:-}" ]; then
+    if [ -n "${VS_DEBUG:-}" ]; then
         printf '  [debug] %s\n' "$1" >&2
     fi
 }
@@ -241,7 +245,7 @@ vs_confirm() {
 # ---------------------------------------------------------------------------
 
 # vs_parse_args "$@" -- sets VS_ACTION (verify|install|help), VS_DRY_RUN,
-# VS_VERBOSE, VS_ASSUME_YES. Returns 2 on an unknown option.
+# VS_VERBOSE, VS_DEBUG, VS_OFFLINE, VS_ASSUME_YES. Returns 2 on an unknown option.
 vs_parse_args() {
     VS_ACTION=verify
     VS_DRY_RUN=""
@@ -253,6 +257,7 @@ vs_parse_args() {
             --dry-run)   VS_DRY_RUN=1 ;;
             --offline)   VS_OFFLINE=1 ;;
             --verbose)   VS_VERBOSE=1 ;;
+            --debug)     VS_DEBUG=1 ;;
             -y|--yes)    VS_ASSUME_YES=1 ;;
             *)
                 printf '%s: unknown option: %s\n' "${0##*/}" "$1" >&2
@@ -270,7 +275,8 @@ vs_flag_help() {
     printf '  --install     install or upgrade as needed, after confirming\n'
     printf '  --dry-run     say what would happen, change nothing\n'
     printf '  --offline     skip lookups that need the network\n'
-    printf '  --verbose     more detail\n'
+    printf '  --verbose     explain what each thing is and why it is needed\n'
+    printf '  --debug       show what was run and what came back\n'
     printf '  -y, --yes     skip the confirmation prompt\n'
     printf '  -h, --help    this message\n'
 }
@@ -353,4 +359,50 @@ vs_probe_network() {
 # that says "ok" without saying what was tested is not checkable.
 vs_probe_description() {
     printf 'curl -sI %s, %ss timeout\n' "$VS_PROBE_URL" "$VS_PROBE_TIMEOUT"
+}
+
+# ---------------------------------------------------------------------------
+# Ordering
+# ---------------------------------------------------------------------------
+
+# vs_ordered_prerequisites INTERNAL -- prerequisite commands in install order.
+#
+# Shared by analyze and install on purpose: a plan that lists work in a different
+# order than it is performed undercuts saying what will happen.
+#
+# Order comes from install-sequence/, never from command names -- a command is
+# named for what it is, not for when it runs. An entry NN-<name> means "run
+# prerequisite/<name> at this position". Anything with no entry runs last,
+# alphabetically, so a new command is never silently skipped.
+vs_ordered_prerequisites() {
+    local internal=$1
+    local prereq="$internal/commands/prerequisite"
+    local sequence="$internal/install-sequence"
+    local e name seen="" leaf
+
+    for e in "$sequence"/*; do
+        name=${e##*/}
+        case "$name" in
+            *.md) continue ;;
+        esac
+        name=${name#*-}
+        if [ -x "$prereq/$name" ]; then
+            printf '%s\n' "$prereq/$name"
+            seen="$seen $name"
+        else
+            vs_debug "install-sequence names $name, but no such command"
+        fi
+    done
+
+    for leaf in "$prereq"/*; do
+        if [ ! -x "$leaf" ]; then
+            continue
+        fi
+        name=${leaf##*/}
+        case " $seen " in
+            *" $name "*) continue ;;
+        esac
+        vs_debug "$name has no install-sequence entry; running it last"
+        printf '%s\n' "$leaf"
+    done
 }

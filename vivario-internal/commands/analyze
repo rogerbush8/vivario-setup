@@ -27,21 +27,20 @@ vs_info "os" "$(vs_os)" "$(vs_os_release) ($(vs_arch))"
 brew_prefix=$(vs_brew_prefix)
 if [ -n "$brew_prefix" ]; then
     vs_info "homebrew" "ok" "$brew_prefix"
+    vs_about <<'TXT'
+You have Homebrew installed, which is an optional macOS package manager.
+Vivario doesn't require or install it. However, if a prerequisite was
+installed by Homebrew, Vivario *must* use Homebrew to upgrade that
+prerequisite -- which is why you are seeing it in this list.
+TXT
 else
     vs_info "homebrew" "absent" "installs will use each tool's own installer"
-fi
-vs_about <<'TXT'
-Homebrew is an optional macOS package manager. vivario does not require
-it and will never install it for you. It is used for one thing only:
-installing the prerequisites below, when it happens to be present.
-
-It does carry one obligation. If Homebrew installed a prerequisite, it
-MUST also be used to upgrade it. The two are different installations,
-and a tool's own updater will refuse outright once it sees a package
-manager put it there. Where the method cannot be determined this says
-so rather than guessing -- guessing is how a machine ends up with two
-copies of a tool on its PATH.
+    vs_about <<'TXT'
+Homebrew is an optional macOS package manager. You don't have it, and
+Vivario neither requires nor installs it. Each prerequisite will be
+installed using its own installer instead.
 TXT
+fi
 
 # Probed once here, not per check: one short answer instead of N timeouts, and
 # the user is told why enrichment is missing rather than having to infer it.
@@ -61,13 +60,11 @@ fi
 
 vs_heading "prerequisites"
 rc=0
-for leaf in "$PREREQ"/*; do
-    if [ ! -x "$leaf" ]; then
-        continue
-    fi
+# Same order install will use, so the plan reads as the plan.
+vs_ordered_prerequisites "$(dirname "$HERE")" | while IFS= read -r leaf; do
     # Flags have to be forwarded explicitly: each leaf is its own process and
     # inherits nothing it was not handed.
-    "$leaf" --install --dry-run ${VS_VERBOSE:+--verbose} ${VS_OFFLINE:+--offline} || rc=1
+    "$leaf" --install --dry-run ${VS_VERBOSE:+--verbose} ${VS_DEBUG:+--debug} ${VS_OFFLINE:+--offline} || true
 done
 
 exit "$rc"

@@ -16,16 +16,14 @@ usage() {
 about() {
     vs_about <<'TXT'
 uv is a Python package and project manager, written in Rust and very
-fast. It replaces a pile of older tools that each did one part of the
-job: pip for installing, virtualenv for isolation, pipx for
-command-line tools, and pyenv for juggling interpreter versions.
+fast. It replaces older individual tools -- pip, virtualenv, pipx --
+with a single, cohesive CLI. Vivario uses `uv tool install` to install
+the vivo CLI, making it globally available through one set of isolated
+packages.
 
-vivario uses it to install the vivo toolset -- real commands you can
-run from any project, in a private environment of their own. So vivo's
-dependencies cannot collide with what your projects need, and nothing
-your projects install can break vivo.
-
-Worth having for your own Python work regardless.
+You are free to use uv or any other installer for your own project
+work. Vivario doesn't mandate this or care -- though it is an excellent
+choice for Python project package management.
 TXT
 }
 

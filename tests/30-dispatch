@@ -37,4 +37,20 @@ t_contains "group reached uv too"             "$fwd" "uv"
 leaf=$(/bin/bash "$VS" prerequisite uv --help)
 t_contains "leaf help shows its flags" "$leaf" "--dry-run"
 
+# --verbose and --debug answer different questions and must stay separable.
+verbose_only=$(/bin/bash "$VS" prerequisite uv --verbose --offline 2>&1)
+debug_only=$(/bin/bash "$VS" prerequisite uv --debug --offline 2>&1)
+
+t_contains "--verbose explains"          "$verbose_only" "uv is a Python package"
+case "$verbose_only" in
+    *"[debug]"*) t_bad "--verbose leaked diagnostics" ;;
+    *)           t_ok  "--verbose carries no diagnostics" ;;
+esac
+
+t_contains "--debug shows what was run"  "$debug_only" "[debug]"
+case "$debug_only" in
+    *"uv is a Python package"*) t_bad "--debug leaked the explanation" ;;
+    *)                          t_ok  "--debug carries no explanation" ;;
+esac
+
 t_summary

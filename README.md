@@ -60,7 +60,8 @@ Every command takes the same flags:
 --install     install or upgrade as needed, after confirming
 --dry-run     say what would happen, change nothing
 --offline     skip lookups that need the network
---verbose     more detail
+--verbose     explain what each thing is and why it is needed
+--debug       show what was run and what came back
 -y, --yes     skip the confirmation prompt
 -h, --help    help for that command
 ```

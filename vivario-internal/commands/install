@@ -21,48 +21,13 @@ INTERNAL=$(dirname "$HERE")
 PREREQ="$HERE/prerequisite"
 SEQUENCE="$INTERNAL/install-sequence"
 
-# ordered_leaves -- prerequisite commands in install order.
-#
-# Order comes from install-sequence/, never from the command names: a command is
-# named for what it is, not for when it runs. An entry named NN-<name> means
-# "run prerequisite/<name> at this position". Anything with no entry runs after,
-# alphabetically, so a new command is never silently skipped.
-ordered_leaves() {
-    local e name seen=""
-    for e in "$SEQUENCE"/*; do
-        name=${e##*/}
-        case "$name" in
-            *.md) continue ;;
-        esac
-        name=${name#*-}
-        if [ -x "$PREREQ/$name" ]; then
-            printf '%s\n' "$PREREQ/$name"
-            seen="$seen $name"
-        else
-            vs_debug "install-sequence names $name, but no such command"
-        fi
-    done
-    local leaf
-    for leaf in "$PREREQ"/*; do
-        if [ ! -x "$leaf" ]; then
-            continue
-        fi
-        name=${leaf##*/}
-        case " $seen " in
-            *" $name "*) continue ;;
-        esac
-        vs_debug "$name has no install-sequence entry; running it last"
-        printf '%s\n' "$leaf"
-    done
-}
-
 # --- plan first, always ---------------------------------------------------
 
-"$HERE/analyze" ${VS_VERBOSE:+--verbose} ${VS_OFFLINE:+--offline} || true
+"$HERE/analyze" ${VS_VERBOSE:+--verbose} ${VS_DEBUG:+--debug} ${VS_OFFLINE:+--offline} || true
 
 work=0
 blocked=0
-for leaf in $(ordered_leaves); do
+vs_ordered_prerequisites "$INTERNAL" | while IFS= read -r leaf; do
     rc=0
     "$leaf" --install --dry-run >/dev/null 2>&1 || rc=$?
     case "$rc" in
@@ -108,7 +73,7 @@ fi
 
 vs_heading "installing"
 rc=0
-for leaf in $(ordered_leaves); do
+vs_ordered_prerequisites "$INTERNAL" | while IFS= read -r leaf; do
     VS_ASSUME_YES=1 "$leaf" --install || rc=1
 done
 exit "$rc"

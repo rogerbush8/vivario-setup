@@ -1,0 +1,119 @@
+#!/usr/bin/env bash
+# description: a Python interpreter new enough for the vivo toolset
+set -euo pipefail
+. "$(dirname "$0")/../../lib/common.sh"
+
+NAME=python
+# Not a guess: every vivario pyproject.toml declares requires-python = ">=3.10".
+PYTHON_MIN=3.10
+
+usage() {
+    printf 'Usage: vivario-setup prerequisite python [OPTIONS]\n\n'
+    printf '  Checks for a Python interpreter of at least %s.\n\n' "$PYTHON_MIN"
+    printf '  When one is missing or too old this installs an ADDITIONAL\n'
+    printf '  interpreter rather than replacing what is there. Replacing a\n'
+    printf '  system or pyenv-managed Python breaks whatever else depends on it.\n\n'
+    vs_flag_help
+}
+
+about() {
+    vs_about <<'TXT'
+Python is what the vivo toolset itself runs on. Vivario needs one
+interpreter of at least 3.10 available for uv to build its tool
+environment against -- it does not care which one, or how you got it.
+
+Nothing here touches the Python your own projects use. If an interpreter
+has to be installed, it is added alongside what you already have, never
+in place of it.
+TXT
+}
+
+# --- detect ---------------------------------------------------------------
+
+found=""
+version=""
+method=""
+
+detect() {
+    if ! have_cmd python3; then
+        vs_debug "no python3 on PATH"
+        return 0
+    fi
+    found=yes
+    local path
+    version=$(python3 --version 2>&1 | awk '{print $2}')
+    path=$(vs_resolve "$(command -v python3)")
+    method=$(vs_install_method "$path")
+    vs_debug "python3 at $path"
+    vs_debug "install method: $method"
+}
+
+# --- plan -----------------------------------------------------------------
+
+status=""
+detail=""
+fix=""
+
+plan() {
+    # uv is the preferred source because it is already a prerequisite, ordered
+    # ahead of this one, and needs no package manager of its own.
+    if have_cmd uv; then
+        fix="uv python install $PYTHON_MIN"
+    elif have_cmd brew; then
+        fix="brew install python@$PYTHON_MIN"
+    else
+        fix="install Python $PYTHON_MIN or newer, then re-run"
+    fi
+
+    if [ -z "$found" ]; then
+        status=$VS_STATUS_INSTALL
+        detail="not found; will install $PYTHON_MIN"
+        return 0
+    fi
+    if vs_vercmp_lt "$version" "$PYTHON_MIN"; then
+        # Deliberately an install, not an upgrade: replacing the interpreter
+        # that is already there would break whatever else depends on it.
+        status=$VS_STATUS_INSTALL
+        detail="$version is older than $PYTHON_MIN; will install one alongside it"
+        return 0
+    fi
+    status=$VS_STATUS_OK
+    detail="via $method"
+}
+
+# --- run ------------------------------------------------------------------
+
+vs_parse_args ${@+"$@"} || exit 2
+if [ "$VS_ACTION" = help ]; then
+    usage
+    exit 0
+fi
+
+detect
+plan
+
+vs_report "$NAME" "$version" "$status" "$detail"
+
+if [ "$status" = "$VS_STATUS_OK" ]; then
+    about
+    exit 0
+fi
+
+vs_note "$fix"
+about
+
+if [ "$VS_ACTION" != install ] || [ -n "$VS_DRY_RUN" ]; then
+    exit "$VS_RC_WORK"
+fi
+
+if ! vs_confirm "run: $fix"; then
+    vs_report "$NAME" "" "skipped" "not confirmed"
+    exit "$VS_RC_BLOCKED"
+fi
+
+vs_debug "running: $fix"
+eval "$fix"
+detect
+plan
+vs_report "$NAME" "$version" "$status" "$detail"
+[ "$status" = "$VS_STATUS_OK" ]
