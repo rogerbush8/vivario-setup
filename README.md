@@ -12,35 +12,38 @@ is checking for.
 $ ./vivario-setup
 vivario-setup 0.1.0
 
+INSTALL PLAN
+
 ------------------------------------------------------------
 system
-  os          26.0.1   ok     none           macos (arm64)
-  homebrew             ok     none           /opt/homebrew
-  network              ok     none
+  os          26.0.1   ok     -           macos (arm64)
+  homebrew             ok     -           /opt/homebrew
+  network              ok     -
 
 ------------------------------------------------------------
 prerequisites
-  uv          0.9.7    ok     none           via homebrew (0.12.18 available)
-  python      3.12.6   ok     none           via pyenv
-  cmux        0.64.22  ok     none           as a macOS app (0.64.25 available)
+  uv          0.9.7    ok     -           via homebrew (0.12.18 available)
+  python      3.12.6   ok     -           via pyenv
+  cmux        0.64.22  ok     -           as a macOS app (0.64.25 available)
 
 ------------------------------------------------------------
 project
-  .vivario/            ok     none           ~/Work/Projects/ws-voice-agent-system
-    project.toml       ok     none           ws-voice-agent-system, created 2026-04-01
+  .vivario/            ok     -           ~/Work/Projects/ws-voice-agent-system
+    project.toml       ok     -           ws-voice-agent-system, created 2026-04-01
 
 ------------------------------------------------------------
 summary
-  Prerequisites:  ready    no action, already installed
-  Project:        ready    no action, already initialized
+  Prerequisites:  ok       no action, already installed
+  Project:        ok       no action, already initialized
 
   To start vivario:  % ./vivario-start
 ```
 
 Two columns carry the state: **state** answers "is this fine?", and **action**
-answers "what needs doing, or what was done". A clean run says `none` in every
-action column, which is how you can see at a glance that nothing was changed
-rather than having to infer it from the absence of an error.
+answers "what needs doing, or what was done". A clean run shows `-` in every
+action column, so the rows that do need something stand out instead of every row
+carrying similar-looking text -- which is how you see at a glance that nothing was
+changed, rather than inferring it from the absence of an error.
 
 Nothing is changed without showing you the plan and asking first.
 

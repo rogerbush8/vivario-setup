@@ -49,17 +49,29 @@ t_contains "leaf help shows its flags" "$leaf" "--dry-run"
 verbose_only=$(/bin/bash "$VS" prerequisite uv --verbose --offline 2>&1)
 debug_only=$(/bin/bash "$VS" prerequisite uv --debug --offline 2>&1)
 
-t_contains "--verbose explains"          "$verbose_only" "uv is a Python package"
+# Keyed on the SHAPE of an explanatory block -- vs_about indents six spaces --
+# rather than on any sentence inside it. Matching prose fails on every rewording
+# while catching no defect.
+has_prose() {
+    printf '%s\n' "$1" | command grep -qE '^      [A-Za-z]'
+}
+
+if has_prose "$verbose_only"; then
+    t_ok  "--verbose emits an explanatory block"
+else
+    t_bad "--verbose emitted no explanatory block"
+fi
 case "$verbose_only" in
     *"[debug]"*) t_bad "--verbose leaked diagnostics" ;;
     *)           t_ok  "--verbose carries no diagnostics" ;;
 esac
 
 t_contains "--debug shows what was run"  "$debug_only" "[debug]"
-case "$debug_only" in
-    *"uv is a Python package"*) t_bad "--debug leaked the explanation" ;;
-    *)                          t_ok  "--debug carries no explanation" ;;
-esac
+if has_prose "$debug_only"; then
+    t_bad "--debug leaked the explanation"
+else
+    t_ok  "--debug carries no explanation"
+fi
 
 # analyze must report failure, not just print it. Its prerequisite loop used to
 # be a `while read` on a pipe -- a subshell -- so every count was discarded and it
@@ -79,12 +91,15 @@ case "$outside" in
 esac
 t_rc  "outside a project it fails" 1 /bin/bash -c "cd / && '$VS' analyze --offline"
 
-# The action column is what makes a no-op obvious. Asserted structurally: a clean
-# run must say "none" and must not claim any work was needed.
-t_contains "clean run says no action needed" "$clean" "none"
+# The action column is what makes a no-op obvious. Asserted as the ABSENCE of any
+# action, not the presence of a particular no-action token -- the token has now
+# been reworded twice, and each time an assertion matching it broke while catching
+# nothing.
 case "$clean" in
-    *"needs "*) t_bad "clean run claims work is needed" ;;
-    *)          t_ok  "clean run claims no work" ;;
+    *"to install"*|*"to upgrade"*|*"needs you"*)
+        t_bad "clean run claims work is needed" ;;
+    *)
+        t_ok  "clean run claims no work" ;;
 esac
 
 # The OS is a gate: when it fails nothing downstream is even reported.

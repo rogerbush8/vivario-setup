@@ -16,6 +16,8 @@ if [ "$VS_ACTION" = help ]; then
     exit 0
 fi
 
+printf '\nINSTALL PLAN\n'
+
 HERE=$(cd "$(dirname "$0")" && pwd)
 INTERNAL=$(dirname "$HERE")
 PAYLOAD=$(dirname "$INTERNAL")
@@ -97,7 +99,7 @@ vs_summary() {
 }
 
 if [ "$work" -eq 0 ] && [ "$blocked" -eq 0 ]; then
-    vs_summary "Prerequisites" "ready" "no action, already installed"
+    vs_summary "Prerequisites" "$VS_OK" "no action, already installed"
 elif [ "$work" -gt 0 ]; then
     if [ "$work" -eq 1 ]; then
         detail="1 to install or upgrade"
@@ -115,7 +117,7 @@ else
 fi
 
 if [ "$project_rc" -eq 0 ]; then
-    vs_summary "Project" "ready" "no action, already initialized"
+    vs_summary "Project" "$VS_OK" "no action, already initialized"
 else
     vs_summary "Project" "blocked" "no initialized project here"
 fi

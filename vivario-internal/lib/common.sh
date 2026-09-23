@@ -210,9 +210,11 @@ VS_RC_WORK=10       # work is pending and we can do it
 VS_OK=ok
 VS_NOT_OK=--
 
-VS_ACT_NONE=none
-VS_ACT_NEEDS_INSTALL="needs install"
-VS_ACT_NEEDS_UPGRADE="needs upgrade"
+# "-" rather than a word for no action, so the rows that DO need something stand
+# out instead of every row carrying similar-looking text.
+VS_ACT_NONE=-
+VS_ACT_NEEDS_INSTALL="to install"
+VS_ACT_NEEDS_UPGRADE="to upgrade"
 VS_ACT_NEEDS_YOU="needs you"
 VS_ACT_INSTALLED=installed
 VS_ACT_UPGRADED=upgraded
@@ -220,7 +222,7 @@ VS_ACT_UPGRADED=upgraded
 # vs_report NAME VERSION VERDICT STATE [DETAIL]
 # vs_report NAME VERSION STATE ACTION [DETAIL]
 vs_report() {
-    printf '  %-11s %-8s %-6s %-14s %s\n' "$1" "${2:--}" "$3" "$4" "${5:-}"
+    printf '  %-11s %-8s %-6s %-11s %s\n' "$1" "${2:--}" "$3" "$4" "${5:-}"
 }
 
 # vs_info NAME STATUS [DETAIL] -- a row for something that has no version.
@@ -233,12 +235,12 @@ vs_report() {
 # vs_info NAME STATE ACTION [DETAIL] -- a row with no version; the name spans the
 # name and version columns so the state still lands in line.
 vs_info() {
-    printf '  %-20s %-6s %-14s %s\n' "$1" "$2" "$3" "${4:-}"
+    printf '  %-20s %-6s %-11s %s\n' "$1" "$2" "$3" "${4:-}"
 }
 
 # vs_note TEXT -- an indented continuation line under a report row.
 vs_note() {
-    printf '  %-11s %-8s %-6s %-14s %s\n' "" "" "" "" "$1"
+    printf '  %-11s %-8s %-6s %-11s %s\n' "" "" "" "" "$1"
 }
 
 # vs_heading TEXT -- a section banner.
