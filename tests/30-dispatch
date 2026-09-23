@@ -117,6 +117,7 @@ rm -rf "$gate"
 # Bare invocation is the main entry point, so it must end by saying vivario is
 # ready and how to start it -- not with a second closing line from install.
 bare=$(/bin/bash "$VS" --offline 2>&1 || true)
+# Deliberately not matching emphasis or punctuation, which get tweaked.
 t_contains "bare says vivario is ready" "$bare" "ready to run"
 t_contains "bare says how to start"     "$bare" "vivario-start"
 case "$bare" in

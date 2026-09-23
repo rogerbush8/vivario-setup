@@ -36,7 +36,7 @@ summary
   Prerequisites:       ok     -           already installed
   Project:             ok     -           already initialized
 
-  Vivario is ready to run.  To start:  % ./vivario-start
+  **Vivario is ready to run!**  To start:  % ./vivario-start
 ```
 
 Two columns carry the state: **state** answers "is this fine?", and **action**

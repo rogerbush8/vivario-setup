@@ -150,4 +150,4 @@ if [ "$blocked" -gt 0 ] || [ "$project_rc" -ne 0 ]; then
     exit "$VS_RC_BLOCKED"
 fi
 
-printf '\n  Vivario is ready to run.  To start:  %% ./vivario-start\n'
+printf '\n  **Vivario is ready to run!**  To start:  %% ./vivario-start\n'
