@@ -85,7 +85,7 @@ detect() {
     local target tools
     target=$(vs_resolve "$(command -v vivo)")
     tools=$(uv tool dir 2>/dev/null || true)
-    vs_debug "vivo resolves to $target"
+    vs_debug "vivo resolves to $(vs_tilde "$target")"
 
     # Which uv tool venv owns it, if any.
     case "$target" in
@@ -104,7 +104,7 @@ detect() {
         case "${managed_dir:+$home}" in
             "$managed_dir"*) managed=yes ;;
         esac
-        vs_debug "interpreter $interpreter at $home (managed=${managed:-no})"
+        vs_debug "interpreter $interpreter at $(vs_tilde "$home") (managed=${managed:-no})"
     fi
 }
 

@@ -4,10 +4,17 @@ set -euo pipefail
 . "$(dirname "$0")/../lib/common.sh"
 
 NAME=system
-# Not a guess: cmux states this in two places -- minimumSystemVersion in its
-# Sparkle appcast, and LSMinimumSystemVersion in the installed bundle. cmux is
-# the reason vivario needs macOS at all, so its floor is the floor.
-MACOS_MIN=14.0
+# Two reasons, and it is worth keeping both written down.
+#
+# cmux requires macOS 14 -- stated as minimumSystemVersion in its Sparkle appcast
+# and LSMinimumSystemVersion in the installed bundle -- and cmux is why vivario
+# needs macOS at all.
+#
+# We require 15 (Sequoia), one higher, because that is when macOS began shipping
+# jq in /usr/bin. Several vivo hooks parse JSON with jq and silently skip that
+# work when it is absent; requiring 15 makes jq a given rather than a conditional
+# path nobody would exercise.
+MACOS_MIN=15.0
 
 usage() {
     printf 'Usage: vivario-setup system [OPTIONS]\n\n'
@@ -18,12 +25,22 @@ usage() {
 
 about() {
     vs_about <<'TXT'
-vivario needs macOS because cmux does -- cmux is a macOS application, and
-it is what vivo runs agents inside. The minimum is macOS 14.0, which is
-cmux's own stated requirement rather than a number chosen here.
+vivario needs macOS 15 (Sequoia) or newer. Two reasons are known, and
+there are probably others.
 
-Nothing else in this list depends on the OS version, so if this is the
-only thing failing, updating macOS is the whole job.
+cmux requires macOS 14. cmux is why vivario needs macOS at all -- it is
+the terminal vivo runs agents inside -- and it states that floor itself,
+in its update feed and in its installed bundle.
+
+macOS began shipping jq in /usr/bin with 15. Several vivo hooks parse
+JSON with jq and quietly skip that work when it is absent, so nothing
+breaks but a feature disappears without saying so. Requiring 15 makes jq
+a given rather than a path that silently degrades.
+
+Beyond those two, other parts of vivario have not had their OS floors
+established. 15 is the highest requirement currently KNOWN -- it is not a
+finding that everything else works on 15 and fails below it. Treat a
+lower version as unsupported rather than as tested.
 TXT
 }
 
@@ -54,7 +71,7 @@ if [ "$os" != macos ]; then
 elif vs_vercmp_lt "$release" "$MACOS_MIN"; then
     vs_report "os" "$release" "$VS_NOT_OK" "$VS_ACT_NEEDS_YOU" \
         "macOS $MACOS_MIN or newer is required"
-    vs_note "Update macOS to $MACOS_MIN or newer first, then run ./vivario-setup again."
+    vs_note "Update macOS, then re-run."
     blocked=1
 else
     vs_report "os" "$release" "$VS_OK" "$VS_ACT_NONE" "macos ($(vs_arch))"
@@ -78,6 +95,29 @@ case "$net_rc" in
     2) vs_info "network" "$VS_OK" "$VS_ACT_NONE" "not used; asked to stay offline" ;;
     *) vs_info "network" "$VS_OK" "$VS_ACT_NONE" "unreachable; checks stay local" ;;
 esac
+
+# --- jq --------------------------------------------------------------------
+#
+# Guaranteed by the OS floor above, so this reports rather than requires. Kept
+# because its absence is not harmless: vivo hooks that parse JSON with it skip
+# that work silently, so a missing jq costs you a feature without saying so.
+
+if have_cmd jq; then
+    jq_path=$(vs_resolve "$(command -v jq)")
+    case "$jq_path" in
+        /usr/bin/*) jq_detail="provided by macOS" ;;
+        *)          jq_detail="$(vs_method_label "$(vs_install_method "$jq_path")")" ;;
+    esac
+    vs_info "jq" "$VS_OK" "$VS_ACT_NONE" \
+        "$(jq --version 2>/dev/null | sed 's/^jq-//'), $jq_detail"
+else
+    vs_info "jq" "$VS_NOT_OK" "$VS_ACT_NEEDS_YOU" "absent, though macOS $release ships it"
+    vs_prenote "jq" <<'TXT'
+jq is part of macOS at this version but is not on PATH. Some vivo hooks parse
+JSON with it and quietly skip that work without it -- nothing fails, but you
+lose the feature silently. Worth finding out why it is missing.
+TXT
+fi
 
 # The OS is a gate, not a prerequisite: nothing downstream can be fixed while it
 # fails. Network and Homebrew are never blocking -- their absence only makes the

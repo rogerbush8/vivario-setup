@@ -103,15 +103,23 @@ Every command takes the same flags:
 
 ## Requirements
 
-macOS 14.0 or newer, and nothing else -- vivo is installed here too, as a single
+macOS 15 (Sequoia) or newer -- vivo is installed here too, as a single
 uv tool holding the whole core package set, built against a uv-managed
 interpreter. Every vivario package comes from git; none are published to PyPI.
 
-macOS 14.0 or newer, and nothing else. That floor is cmux's, not one chosen here
--- cmux states it in its own update feed and in its installed bundle, and cmux is
-the reason vivario needs macOS at all. When the OS is too old nothing else is even
-checked: updating macOS is the whole job, so being told about six other things
-would only be noise.
+Two reasons are known for that floor, and there are probably others. **cmux
+requires macOS 14** -- it states so in its own update feed and installed bundle,
+and cmux is why vivario needs macOS at all. **macOS began shipping `jq` in
+`/usr/bin` with 15**, and several vivo hooks parse JSON with jq and quietly skip
+that work when it is absent, so requiring 15 makes jq a given rather than a path
+that silently degrades.
+
+Other parts of vivario have not had their OS floors established, so 15 is the
+highest *known* requirement rather than a tested boundary. Treat anything lower as
+unsupported, not as verified.
+
+When the OS is too old nothing else is even checked: updating macOS is the whole
+job, so being told about six other things would only be noise.
 
 ## Two things it deliberately does not do
 
