@@ -5,7 +5,7 @@ Install ordering lives here, and nowhere else.
 `verify` is order-free -- checks are independent. `install` is not: uv has to be
 present before anything uv installs. But a command must never be *named* for its
 position, because the same command is also something a person runs directly.
-`vivo-setup verify prerequisites` is a real command with a real name;
+`vivario-setup verify prerequisites` is a real command with a real name;
 `01_prerequisites` is not.
 
 So the two concerns are separated. `commands/` holds normally-named commands.

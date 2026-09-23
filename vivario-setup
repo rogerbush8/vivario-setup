@@ -1,23 +1,23 @@
 #!/usr/bin/env bash
 #
-# vivo-setup -- verify and install what vivo needs, before vivo exists.
+# vivario-setup -- verify and install what vivo needs, before vivo exists.
 #
 # This is the only entrypoint. It resolves a command by walking the argument
-# list against the directory tree under vivo-setup-internal/commands: a name
+# list against the directory tree under vivario-internal/commands: a name
 # that matches a directory descends into it, a name that matches an executable
 # file runs it with whatever arguments remain. Adding a command is one
 # executable file and no edit to anything above it.
 #
-# Targets bash 3.2 -- the version Apple ships. See vivo-setup-internal/README.md.
+# Targets bash 3.2 -- the version Apple ships. See vivario-internal/README.md.
 
 set -euo pipefail
 
 PROG=${0##*/}
-INTERNAL="$(dirname "$0")/vivo-setup-internal"
+INTERNAL="$(dirname "$0")/vivario-internal"
 COMMANDS="$INTERNAL/commands"
 
 if [ ! -d "$COMMANDS" ]; then
-    printf '%s: cannot find %s -- is vivo-setup-internal/ alongside this script?\n' \
+    printf '%s: cannot find %s -- is vivario-internal/ alongside this script?\n' \
         "$PROG" "$COMMANDS" >&2
     exit 1
 fi

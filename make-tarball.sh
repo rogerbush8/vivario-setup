@@ -13,11 +13,11 @@ set -euo pipefail
 
 HERE=$(cd "$(dirname "$0")" && pwd)
 OUT=${1:-$HERE/dist}
-VERSION=$(cat "$HERE/vivo-setup-internal/VERSION")
-TARBALL="$OUT/vivo-setup-$VERSION.tar.gz"
+VERSION=$(cat "$HERE/vivario-internal/VERSION")
+TARBALL="$OUT/vivario-setup-$VERSION.tar.gz"
 
 # Exactly what ships. Anything not listed here is repo-only by construction.
-PAYLOAD="vivo-setup vivo-setup-internal"
+PAYLOAD="vivario-setup vivario-internal"
 
 for entry in $PAYLOAD; do
     if [ ! -e "$HERE/$entry" ]; then
@@ -26,8 +26,8 @@ for entry in $PAYLOAD; do
     fi
 done
 
-if [ ! -x "$HERE/vivo-setup" ]; then
-    printf 'make-tarball: vivo-setup is not executable; the archive must carry the bit\n' >&2
+if [ ! -x "$HERE/vivario-setup" ]; then
+    printf 'make-tarball: vivario-setup is not executable; the archive must carry the bit\n' >&2
     exit 1
 fi
 

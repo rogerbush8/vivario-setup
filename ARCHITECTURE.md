@@ -2,7 +2,7 @@
 
 For someone changing the design, not someone running it. Run-time usage is in
 [README.md](README.md); the rules for writing a check are in
-[vivo-setup-internal/README.md](vivo-setup-internal/README.md), which ships with
+[vivario-internal/README.md](vivario-internal/README.md), which ships with
 the payload.
 
 ## What this is
@@ -17,10 +17,10 @@ Target is a laptop or dev machine. Other install targets are out of scope.
 ## The shape
 
 ```
-vivo-setup                      the only entrypoint
-vivo-setup-internal/
+vivario-setup                      the only entrypoint
+vivario-internal/
   commands/
-    _default                    what bare `vivo-setup` does
+    _default                    what bare `vivario-setup` does
     analyze                     report; changes nothing
     install                     plan, ask, act
     prerequisite/
@@ -62,13 +62,13 @@ floor stops being tested at all — silently, with everything still passing. The
 shebang stays `#!/usr/bin/env bash` for portability (FreeBSD puts bash in
 `/usr/local/bin`, NixOS has no `/bin/bash`), but verification must name the floor.
 
-### Every top-level payload entry carries the `vivo-setup` prefix
+### Every top-level payload entry carries the `vivario-setup` prefix
 
 The payload extracts as exactly two entries, directly into whatever directory the
 user is in — which may already be their first project. An unprefixed `README.md`
 or `VERSION` at the top level would **overwrite the user's own**. The prefix is
 correctness, not style, and anything generic belongs inside
-`vivo-setup-internal/`.
+`vivario-internal/`.
 
 ### A network lookup never decides a verdict
 

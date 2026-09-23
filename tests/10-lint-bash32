@@ -6,9 +6,9 @@ set -uo pipefail
 ROOT=$(cd "$(dirname "$0")/.." && pwd)
 
 scripts() {
-    printf '%s\n' "$ROOT/vivo-setup"
-    find "$ROOT/vivo-setup-internal/commands" -type f -perm -u+x 2>/dev/null
-    printf '%s\n' "$ROOT/vivo-setup-internal/lib/common.sh"
+    printf '%s\n' "$ROOT/vivario-setup"
+    find "$ROOT/vivario-internal/commands" -type f -perm -u+x 2>/dev/null
+    printf '%s\n' "$ROOT/vivario-internal/lib/common.sh"
     printf '%s\n' "$ROOT/make-tarball.sh"
 }
 

@@ -14,7 +14,7 @@ CMUX_FEED=https://github.com/manaflow-ai/cmux/releases/latest/download/appcast.x
 CMUX_DMG=https://github.com/manaflow-ai/cmux/releases/latest/download/cmux-macos.dmg
 
 usage() {
-    printf 'Usage: vivo-setup prerequisite cmux [OPTIONS]\n\n'
+    printf 'Usage: vivario-setup prerequisite cmux [OPTIONS]\n\n'
     printf '  Checks that cmux is installed and at least %s.\n\n' "$CMUX_MIN"
     printf '  cmux is a macOS application bundle with no package manager and no\n'
     printf '  command-line installer, so this checks and advises but never\n'

@@ -9,8 +9,8 @@ with it: no Python, no packages, no dependencies beyond a shell and the tools it
 is checking for.
 
 ```
-$ ./vivo-setup
-vivo-setup 0.1.0
+$ ./vivario-setup
+vivario-setup 0.1.0
 
 system
   os                     macos     26.0.1 (arm64)
@@ -32,25 +32,25 @@ Nothing is changed without showing you the plan and asking first.
 There is no install step. Extract it and run it where it landed:
 
 ```
-tar xzf vivo-setup.tar.gz
-./vivo-setup
+tar xzf vivario-setup.tar.gz
+./vivario-setup
 ```
 
-That leaves exactly two entries — `vivo-setup` and `vivo-setup-internal/` — so it
+That leaves exactly two entries — `vivario-setup` and `vivario-internal/` — so it
 is safe to extract straight into a directory that already has your own files in
 it, including the project you are about to set up. Everything it writes carries
-the `vivo-setup` prefix; nothing generic like `README.md` or `VERSION` is placed
+the `vivario-setup` prefix; nothing generic like `README.md` or `VERSION` is placed
 at the top level where it could overwrite yours.
 
 ## Commands
 
 ```
-vivo-setup                      report, ask, then act
-vivo-setup analyze              report only; changes nothing
-vivo-setup install              same as bare, said explicitly
-vivo-setup prerequisite         check everything
-vivo-setup prerequisite uv      check one thing
-vivo-setup prerequisite uv --install
+vivario-setup                      report, ask, then act
+vivario-setup analyze              report only; changes nothing
+vivario-setup install              same as bare, said explicitly
+vivario-setup prerequisite         check everything
+vivario-setup prerequisite uv      check one thing
+vivario-setup prerequisite uv --install
 ```
 
 Every command takes the same flags:
@@ -102,7 +102,7 @@ So everything here targets 3.2. That is a real constraint, not a nominal one:
 `declare -A` does not merely fail on 3.2, it silently degrades into an ordinary
 array where every key collapses onto index 0, printing to stderr and then exiting
 successfully with wrong data. See
-[`vivo-setup-internal/README.md`](vivo-setup-internal/README.md) for what that
+[`vivario-internal/README.md`](vivario-internal/README.md) for what that
 rules out and how to add a check.
 
 ## Building the tarball

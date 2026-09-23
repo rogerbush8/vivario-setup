@@ -4,7 +4,7 @@ set -euo pipefail
 . "$(dirname "$0")/../lib/common.sh"
 
 usage() {
-    printf 'Usage: vivo-setup analyze [OPTIONS]\n\n'
+    printf 'Usage: vivario-setup analyze [OPTIONS]\n\n'
     printf '  Reports this system, whether the network is usable, and the state of\n'
     printf '  every prerequisite. Changes nothing.\n\n'
     vs_flag_help

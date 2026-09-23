@@ -4,11 +4,11 @@ set -uo pipefail
 . "$(dirname "$0")/lib.sh"
 
 ROOT=$(cd "$(dirname "$0")/.." && pwd)
-VS="$ROOT/vivo-setup"
+VS="$ROOT/vivario-setup"
 
 t_rc "--version"                      0 /bin/bash "$VS" --version
 t_is "--version prints VERSION" \
-     "$(/bin/bash "$VS" --version)" "$(cat "$ROOT/vivo-setup-internal/VERSION")"
+     "$(/bin/bash "$VS" --version)" "$(cat "$ROOT/vivario-internal/VERSION")"
 
 t_rc "--help (top)"                   0 /bin/bash "$VS" --help
 t_rc "--help (group)"                 0 /bin/bash "$VS" prerequisite --help

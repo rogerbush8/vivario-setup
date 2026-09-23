@@ -1,4 +1,4 @@
-# vivo-setup-internal
+# vivario-internal
 
 The machinery. Nothing here is meant to be run by hand except the command leaves
 under `commands/`, each of which works on its own as well as through the
@@ -6,10 +6,10 @@ dispatcher.
 
 ## Why the name is prefixed
 
-The payload extracts as exactly two entries -- `vivo-setup` and
-`vivo-setup-internal/` -- directly into whatever directory the user is in, which
+The payload extracts as exactly two entries -- `vivario-setup` and
+`vivario-internal/` -- directly into whatever directory the user is in, which
 may already be their first project. Every top-level entry therefore carries the
-`vivo-setup` prefix so nothing can collide with the user's own files. A generic
+`vivario-setup` prefix so nothing can collide with the user's own files. A generic
 `README.md` or `VERSION` at the top level would overwrite theirs.
 
 **That prefix is a correctness rule, not a style choice.** Any future top-level
@@ -18,8 +18,8 @@ payload entry must carry it.
 ## Layout
 
     commands/           the command tree: directories are groups, files are commands
-      verify/             -> vivo-setup verify
-        uv                -> vivo-setup verify uv
+      verify/             -> vivario-setup verify
+        uv                -> vivario-setup verify uv
     lib/
       common.sh         sourced by the dispatcher and by leaves run standalone
     install-sequence/   install ordering, kept out of the command tree

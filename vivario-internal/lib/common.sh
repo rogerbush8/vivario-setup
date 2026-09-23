@@ -1,8 +1,8 @@
-# vivo-setup shared helpers.
+# vivario-setup shared helpers.
 #
 # Sourced by the dispatcher and by any leaf run on its own. Targets bash 3.2 --
 # the version Apple ships and the floor this whole tree is written to. No
-# associative arrays, no mapfile, no ${v,,}: see vivo-setup-internal/README.md.
+# associative arrays, no mapfile, no ${v,,}: see vivario-internal/README.md.
 
 # have_cmd NAME -- true if NAME is runnable.
 have_cmd() {

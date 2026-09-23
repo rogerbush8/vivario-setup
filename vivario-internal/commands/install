@@ -4,7 +4,7 @@ set -euo pipefail
 . "$(dirname "$0")/../lib/common.sh"
 
 usage() {
-    printf 'Usage: vivo-setup install [OPTIONS]\n\n'
+    printf 'Usage: vivario-setup install [OPTIONS]\n\n'
     printf '  Reports what it would do, asks, then does it. Safe to re-run: what\n'
     printf '  is already in place is left alone.\n\n'
     vs_flag_help

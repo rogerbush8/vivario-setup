@@ -11,8 +11,8 @@ t_rc "make-tarball.sh runs" 0 /bin/bash "$ROOT/make-tarball.sh" "$TMP"
 TARBALL=$(find "$TMP" -name '*.tar.gz' | head -1)
 
 listing=$(tar tzf "$TARBALL")
-t_contains "ships the dispatcher" "$listing" "vivo-setup"
-t_contains "ships the internals"  "$listing" "vivo-setup-internal/lib/common.sh"
+t_contains "ships the dispatcher" "$listing" "vivario-setup"
+t_contains "ships the internals"  "$listing" "vivario-internal/lib/common.sh"
 
 # Repo-only files must not leak into the payload.
 for leak in ".git" "README.md" "ARCHITECTURE.md" "make-tarball.sh" "tests/" "dist/"; do
@@ -25,7 +25,7 @@ done
 
 # Every top-level entry must carry the prefix, or it can overwrite user files.
 tops=$(printf '%s\n' "$listing" | sed 's|/.*||' | sort -u)
-unprefixed=$(printf '%s\n' "$tops" | command grep -v '^vivo-setup' || true)
+unprefixed=$(printf '%s\n' "$tops" | command grep -v '^vivario-' || true)
 if [ -z "$unprefixed" ]; then
     t_ok "every top-level entry is prefixed"
 else
@@ -45,11 +45,11 @@ t_is "user VERSION survived" "$(cat "$PROJ/VERSION")"     "9.9.9"
 t_is "user source survived"  "$(cat "$PROJ/src/app.py")"  "mine"
 
 # The archive must carry the exec bit; a post-extract fixup would be too late.
-if [ -x "$PROJ/vivo-setup" ]; then
+if [ -x "$PROJ/vivario-setup" ]; then
     t_ok "dispatcher is executable after extraction"
 else
     t_bad "dispatcher lost its exec bit in the archive"
 fi
-t_rc "runs from where it landed" 0 /bin/bash -c "cd '$PROJ' && ./vivo-setup analyze --offline"
+t_rc "runs from where it landed" 0 /bin/bash -c "cd '$PROJ' && ./vivario-setup analyze --offline"
 
 t_summary

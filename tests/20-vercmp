@@ -2,7 +2,7 @@
 # Version comparison: the primitive every check depends on.
 set -uo pipefail
 . "$(dirname "$0")/lib.sh"
-. "$(cd "$(dirname "$0")/.." && pwd)/vivo-setup-internal/lib/common.sh"
+. "$(cd "$(dirname "$0")/.." && pwd)/vivario-internal/lib/common.sh"
 
 # cmp A B WANT -- want is one of ==, >, <
 cmp_is() {

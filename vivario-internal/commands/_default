@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# description: what bare `vivo-setup` does
+# description: what bare `vivario-setup` does
 #
 # Bare invocation is `install`: report the system, say what would happen, ask.
 # It lives in its own file rather than inside the dispatcher so the choice is
@@ -8,5 +8,5 @@ set -euo pipefail
 . "$(dirname "$0")/../lib/common.sh"
 
 HERE=$(dirname "$0")
-printf '%s %s\n' "vivo-setup" "$(cat "$(dirname "$HERE")/VERSION")"
+printf '%s %s\n' "vivario-setup" "$(cat "$(dirname "$HERE")/VERSION")"
 exec "$HERE/install" ${@+"$@"}
