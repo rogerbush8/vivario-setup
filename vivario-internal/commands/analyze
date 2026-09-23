@@ -33,7 +33,7 @@ sys_rc=0
 
 if [ "$sys_rc" = "$VS_RC_BLOCKED" ]; then
     vs_heading "summary"
-    printf '  %-16s%-9s%s\n' "System:" "blocked" "the OS must be updated first"
+    printf '  %-21s%-9s%s\n' "System:" "blocked" "the OS must be updated first"
     printf '\n  Nothing else was checked -- update macOS, then run this again.\n'
     exit "$VS_RC_BLOCKED"
 fi
@@ -95,7 +95,7 @@ vs_heading "summary"
 
 # vs_summary LABEL STATE DETAIL -- one scope per line, so they read as a set.
 vs_summary() {
-    printf '  %-16s%-9s%s\n' "$1:" "$2" "$3"
+    printf '  %-21s%-9s%s\n' "$1:" "$2" "$3"
 }
 
 if [ "$work" -eq 0 ] && [ "$blocked" -eq 0 ]; then

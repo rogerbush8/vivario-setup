@@ -69,7 +69,7 @@ plan() {
     if [ -z "$found" ]; then
         state=$VS_NOT_OK
         action=$VS_ACT_NEEDS_INSTALL
-        detail="will install $PYTHON_MIN"
+        detail="not found"
         return 0
     fi
     if vs_vercmp_lt "$version" "$PYTHON_MIN"; then
@@ -77,7 +77,7 @@ plan() {
         # already there would break whatever else depends on it.
         state=$VS_NOT_OK
         action=$VS_ACT_NEEDS_INSTALL
-        detail="older than $PYTHON_MIN; will add one alongside it"
+        detail="older than $PYTHON_MIN"
         return 0
     fi
     state=$VS_OK

@@ -248,7 +248,7 @@ vs_note() {
 # ASCII rather than box-drawing characters on purpose: this runs on machines
 # nothing has been set up on yet, where the terminal's encoding is not something
 # to assume.
-VS_RULE=------------------------------------------------------------
+VS_RULE=--------------------------------------------------------------------------------
 
 vs_heading() {
     printf '\n%s\n%s\n' "$VS_RULE" "$1"
@@ -427,7 +427,7 @@ vs_probe_network() {
 # vs_probe_description -- what the probe actually does, for --verbose. A report
 # that says "ok" without saying what was tested is not checkable.
 vs_probe_description() {
-    printf 'curl -sI %s, %ss timeout\n' "$VS_PROBE_URL" "$VS_PROBE_TIMEOUT"
+    printf 'curl -sI %s (%ss)\n' "${VS_PROBE_URL#https://}" "$VS_PROBE_TIMEOUT"
 }
 
 # ---------------------------------------------------------------------------

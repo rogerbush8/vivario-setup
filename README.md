@@ -14,27 +14,27 @@ vivario-setup 0.1.0
 
 INSTALL PLAN
 
-------------------------------------------------------------
+--------------------------------------------------------------------------------
 system
   os          26.0.1   ok     -           macos (arm64)
   homebrew             ok     -           /opt/homebrew
   network              ok     -
 
-------------------------------------------------------------
+--------------------------------------------------------------------------------
 prerequisites
   uv          0.9.7    ok     -           via homebrew (0.12.18 available)
   python      3.12.6   ok     -           via pyenv
   cmux        0.64.22  ok     -           as a macOS app (0.64.25 available)
 
-------------------------------------------------------------
+--------------------------------------------------------------------------------
 project
   .vivario/            ok     -           ~/Work/Projects/ws-voice-agent-system
     project.toml       ok     -           created 2026-04-01
 
-------------------------------------------------------------
+--------------------------------------------------------------------------------
 summary
-  Prerequisites:  ok       no action, already installed
-  Project:        ok       no action, already initialized
+  Prerequisites:       ok       no action, already installed
+  Project:             ok       no action, already initialized
 
   To start vivario:  % ./vivario-start
 ```

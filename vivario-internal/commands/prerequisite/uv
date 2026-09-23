@@ -89,10 +89,10 @@ plan() {
         state=$VS_NOT_OK
         action=$VS_ACT_NEEDS_INSTALL
         if have_cmd brew; then
-            detail="will install with Homebrew"
+            detail="not found"
             fix="brew install uv"
         else
-            detail="will install with the standalone installer"
+            detail="not found"
             fix="curl -LsSf https://astral.sh/uv/install.sh | sh"
         fi
         return 0
@@ -104,16 +104,16 @@ plan() {
         # a machine ends up with two uvs on PATH.
         case "$method" in
             homebrew)
-                detail="older than $UV_MIN; will upgrade with Homebrew"
+                detail="older than $UV_MIN"
                 fix="brew upgrade uv"
                 ;;
             standalone)
-                detail="older than $UV_MIN; will upgrade in place"
+                detail="older than $UV_MIN"
                 fix="uv self update"
                 ;;
             *)
                 action=$VS_ACT_NEEDS_YOU
-                detail="older than $UV_MIN, installed by an unknown method"
+                detail="older than $UV_MIN, method unknown"
                 fix="upgrade uv however it was installed, then re-run"
                 ;;
         esac
