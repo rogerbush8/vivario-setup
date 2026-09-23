@@ -29,7 +29,7 @@ prerequisites
 ------------------------------------------------------------
 project
   .vivario/            ok     -           ~/Work/Projects/ws-voice-agent-system
-    project.toml       ok     -           ws-voice-agent-system, created 2026-04-01
+    project.toml       ok     -           created 2026-04-01
 
 ------------------------------------------------------------
 summary

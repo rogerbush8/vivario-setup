@@ -35,6 +35,7 @@ has_dir=""
 has_marker=""
 proj_name=""
 proj_created=""
+marker_detail=""
 
 # Read one key from the [project] table. Enough TOML for this: the value is a
 # quoted string, and the table ends at the next [header].
@@ -100,8 +101,14 @@ report() {
         return 0
     fi
 
-    vs_info "  project.toml" "$VS_OK" "$VS_ACT_NONE" \
-        "${proj_name:-unnamed}${proj_created:+, created $proj_created}"
+    # The path on the row above already ends in the project's directory name, so
+    # repeating it here says nothing. The name is only worth showing when it
+    # DISAGREES with the directory, which is genuinely confusing to hit.
+    marker_detail="${proj_created:+created $proj_created}"
+    if [ -n "$proj_name" ] && [ "$proj_name" != "${root##*/}" ]; then
+        marker_detail="named $proj_name${proj_created:+, created $proj_created}"
+    fi
+    vs_info "  project.toml" "$VS_OK" "$VS_ACT_NONE" "$marker_detail"
     state=$VS_OK
 }
 
