@@ -15,7 +15,7 @@ t_contains "ships the dispatcher" "$listing" "vivo-setup"
 t_contains "ships the internals"  "$listing" "vivo-setup-internal/lib/common.sh"
 
 # Repo-only files must not leak into the payload.
-for leak in ".git" "README.md" "ARCHITECTURE.md" "make-tarball.sh" "t/" "dist/"; do
+for leak in ".git" "README.md" "ARCHITECTURE.md" "make-tarball.sh" "tests/" "dist/"; do
     if printf '%s\n' "$listing" | command grep -q "^$leak"; then
         t_bad "payload leaked $leak"
     else

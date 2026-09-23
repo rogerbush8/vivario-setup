@@ -117,7 +117,7 @@ can leak in by accident.
 ## Tests
 
 ```
-t/run
+tests/run
 ```
 
 Runs everything under `/bin/bash` explicitly rather than whatever `bash` resolves
