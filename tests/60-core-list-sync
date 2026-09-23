@@ -1,0 +1,61 @@
+#!/usr/bin/env bash
+# The embedded core package list must match vivario's own declaration.
+#
+# The list is embedded ON PURPOSE -- on a clean install there is no checkout to
+# read [tool.vivo] required_packages from, so a bootstrap that parsed one would
+# only work where it was already unnecessary. That makes the copy necessary rather
+# than accidental, and a sync check the right protection instead of
+# de-duplication.
+#
+# This has already caused one outage: `vivo` and `vivio-index` went missing when a
+# duplicated list was not updated after a package split. See ARCHITECTURE.md.
+set -uo pipefail
+. "$(dirname "$0")/lib.sh"
+
+ROOT=$(cd "$(dirname "$0")/.." && pwd)
+LEAF=$ROOT/vivario-internal/commands/vivo
+DECL=$ROOT/../vivario-tools/packages/vivario-core/pyproject.toml
+
+# What the bootstrap carries.
+embedded=$(awk '
+    /^VIVO_CORE="/ { inside = 1 }
+    inside {
+        line = $0
+        sub(/^VIVO_CORE="/, "", line)
+        sub(/"$/, "", line)
+        if (line != "") { split(line, f, ":"); print f[1] }
+        if ($0 ~ /"$/ && !/^VIVO_CORE="/) exit
+        if ($0 ~ /^VIVO_CORE=".*"$/) exit
+    }
+' "$LEAF" | sort -u)
+
+t_contains "the leaf declares a core list" "$embedded" "vivario-core"
+
+if [ ! -f "$DECL" ]; then
+    t_skip "core list matches [tool.vivo] required_packages" \
+        "no vivario-tools checkout beside this repo"
+    t_summary
+    exit
+fi
+
+# What vivario declares. required_packages always implicitly includes
+# vivario-core, which the declaration also lists explicitly.
+declared=$(awk '
+    /^required_packages = \[/ { inside = 1; next }
+    inside && /^\]/           { exit }
+    inside {
+        if (match($0, /"[^"]+"/)) print substr($0, RSTART + 1, RLENGTH - 2)
+    }
+' "$DECL" | sort -u)
+
+t_contains "the declaration was readable" "$declared" "vivario-core"
+
+if [ "$embedded" = "$declared" ]; then
+    t_ok "core list matches [tool.vivo] required_packages"
+else
+    t_bad "core list has DRIFTED from [tool.vivo] required_packages"
+    printf '        embedded:  %s\n' "$(printf '%s' "$embedded" | tr '\n' ' ')" >&2
+    printf '        declared:  %s\n' "$(printf '%s' "$declared" | tr '\n' ' ')" >&2
+fi
+
+t_summary

@@ -54,6 +54,9 @@ if [ -x "$PROJ/vivario-setup" ]; then
 else
     t_bad "dispatcher lost its exec bit in the archive"
 fi
-t_rc "runs from where it landed" 0 /bin/bash -c "cd '$PROJ' && ./vivario-setup analyze --offline"
+# It must RUN from where it landed; its verdict depends on the host, so assert
+# the report was produced rather than a particular exit code.
+landed=$(cd "$PROJ" && /bin/bash ./vivario-setup analyze --offline 2>&1 || true)
+t_contains "runs from where it landed" "$landed" "prerequisites"
 
 t_summary

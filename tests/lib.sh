@@ -39,7 +39,20 @@ t_contains() {
     esac
 }
 
+# t_skip LABEL WHY -- neither pass nor fail. For an assertion that can only be
+# made on a machine in a particular state; the alternative is a suite that fails
+# for a legitimate host condition, which trains people to ignore it.
+T_SKIP=0
+t_skip() {
+    T_SKIP=$((T_SKIP + 1))
+    printf '  skip  %s -- %s\n' "$1" "$2"
+}
+
 t_summary() {
-    printf '  %s passed, %s failed\n' "$T_PASS" "$T_FAIL"
+    if [ "$T_SKIP" -gt 0 ]; then
+        printf '  %s passed, %s failed, %s skipped\n' "$T_PASS" "$T_FAIL" "$T_SKIP"
+    else
+        printf '  %s passed, %s failed\n' "$T_PASS" "$T_FAIL"
+    fi
     [ "$T_FAIL" -eq 0 ]
 }

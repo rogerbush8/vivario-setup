@@ -1,0 +1,185 @@
+#!/usr/bin/env bash
+# description: the vivo CLI itself, installed as a uv tool
+set -euo pipefail
+. "$(dirname "$0")/../lib/common.sh"
+
+NAME=vivo
+VIVO_ORG=https://github.com/vivario
+# The uv tool whose venv owns the entrypoints.
+VIVO_TOOL=vivario-core
+
+# The core package set, and the monorepo each lives in.
+#
+# EMBEDDED, not read from [tool.vivo] required_packages, because on a clean
+# install there is no checkout to read it from -- a bootstrap that parsed one
+# would only work where it was already unnecessary. See ARCHITECTURE.md; this
+# copy is what the sync check exists to protect.
+#
+# All five must be named explicitly at install time: uv exposes the console
+# scripts of REQUESTED packages only, and `vivo` itself comes from
+# vivario-core-vivo, not from vivario-core. Installing vivario-core alone gets
+# you vivo-fs and vivo-publish but no vivo.
+VIVO_CORE="vivario-core:vivario-tools
+vivario-core-vivo:vivario-system
+vivario-index-vivo:vivario-system
+vivario-textscape-render:vivario-textscape
+vivario-textscape-tui:vivario-textscape"
+
+usage() {
+    printf 'Usage: vivario-setup vivo [OPTIONS]\n\n'
+    printf '  Checks whether the vivo CLI is installed as a uv tool, and installs\n'
+    printf '  it from git if not. All vivario packages come from git; none are\n'
+    printf '  published to PyPI.\n\n'
+    vs_flag_help
+}
+
+about() {
+    vs_about <<'TXT'
+vivo is installed as a single uv tool: one isolated environment holding
+the whole core package set, with its commands placed on your PATH.
+
+Every vivario package is fetched from git -- nothing is published to
+PyPI. Five packages have to be named explicitly, because uv exposes the
+commands of packages you ask for by name, and `vivo` itself is provided
+by vivario-core-vivo rather than by vivario-core.
+TXT
+}
+
+# git_spec PACKAGE MONOREPO -- a PEP 508 requirement uv can resolve.
+git_spec() {
+    printf '%s @ git+%s/%s.git#subdirectory=packages/%s\n' "$1" "$VIVO_ORG" "$2" "$1"
+}
+
+# install_command -- the whole thing, as it would be run.
+install_command() {
+    local first=yes line pkg repo
+    printf 'uv tool install --managed-python'
+    while IFS= read -r line; do
+        pkg=${line%%:*}
+        repo=${line##*:}
+        if [ "$first" = yes ]; then
+            printf ' "%s"' "$(git_spec "$pkg" "$repo")"
+            first=no
+        else
+            printf ' --with "%s"' "$(git_spec "$pkg" "$repo")"
+        fi
+    done <<EOF
+$VIVO_CORE
+EOF
+    printf '\n'
+}
+
+# --- detect ---------------------------------------------------------------
+
+found=""
+owner=""
+interpreter=""
+managed=""
+
+detect() {
+    if ! have_cmd vivo; then
+        vs_debug "vivo not on PATH"
+        return 0
+    fi
+    found=yes
+    local target tools
+    target=$(vs_resolve "$(command -v vivo)")
+    tools=$(uv tool dir 2>/dev/null || true)
+    vs_debug "vivo resolves to $target"
+
+    # Which uv tool venv owns it, if any.
+    case "$target" in
+        "$tools"/*)
+            owner=${target#"$tools"/}
+            owner=${owner%%/*}
+            ;;
+    esac
+    vs_debug "owning tool: ${owner:-none}"
+
+    if [ -n "$owner" ] && [ -f "$tools/$owner/pyvenv.cfg" ]; then
+        interpreter=$(awk -F'= ' '/^version_info/{print $2; exit}' "$tools/$owner/pyvenv.cfg")
+        local home managed_dir
+        home=$(awk -F'= ' '/^home/{print $2; exit}' "$tools/$owner/pyvenv.cfg")
+        managed_dir=$(uv python dir 2>/dev/null || true)
+        case "${managed_dir:+$home}" in
+            "$managed_dir"*) managed=yes ;;
+        esac
+        vs_debug "interpreter $interpreter at $home (managed=${managed:-no})"
+    fi
+}
+
+# --- plan -----------------------------------------------------------------
+
+state=""
+action=""
+detail=""
+fix=""
+
+plan() {
+    fix=$(install_command)
+
+    if [ -z "$found" ]; then
+        state=$VS_NOT_OK
+        action=$VS_ACT_NEEDS_INSTALL
+        detail="not installed"
+        return 0
+    fi
+
+    state=$VS_OK
+    action=$VS_ACT_NONE
+    if [ -z "$owner" ]; then
+        detail="on PATH, but not from a uv tool"
+    elif [ -n "$managed" ]; then
+        detail="uv tool $owner, python $interpreter (managed)"
+    else
+        detail="uv tool $owner, python $interpreter"
+    fi
+}
+
+# --- run ------------------------------------------------------------------
+
+vs_parse_args ${@+"$@"} || exit 2
+if [ "$VS_ACTION" = help ]; then
+    usage
+    exit 0
+fi
+if [ "$VS_ACTION" = notes ]; then
+    VS_NOTES=1
+    vs_note_name "$NAME"
+    about
+    exit 0
+fi
+
+detect
+plan
+
+vs_report "$NAME" "" "$state" "$action" "$detail"
+
+if [ "$state" = "$VS_OK" ]; then
+    about
+    exit 0
+fi
+
+vs_note "installs the core package set from git"
+vs_prenote "vivo" <<'TXT'
+vivo will be installed as one uv tool holding the whole core package set,
+built against the uv-managed interpreter. Every package is fetched from git.
+TXT
+about
+
+if [ "$VS_ACTION" != install ] || [ -n "$VS_DRY_RUN" ]; then
+    exit "$VS_RC_WORK"
+fi
+
+if ! vs_confirm "run: $fix"; then
+    vs_report "$NAME" "" "$VS_NOT_OK" "$VS_ACT_NEEDS_YOU" "not confirmed"
+    exit "$VS_RC_BLOCKED"
+fi
+
+vs_debug "running: $fix"
+eval "$fix"
+detect
+plan
+action=$VS_ACT_INSTALLED
+vs_report "$NAME" "" "$state" "$action" "$detail"
+[ "$state" = "$VS_OK" ]

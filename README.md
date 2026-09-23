@@ -12,8 +12,7 @@ is checking for.
 $ ./vivario-setup
 vivario-setup 0.1.0
 
-INSTALL PLAN
-
+VIVARIO INSTALL PLAN
 --------------------------------------------------------------------------------
 system
   os          26.0.1   ok     -           macos (arm64)
@@ -23,8 +22,12 @@ system
 --------------------------------------------------------------------------------
 prerequisites
   uv          0.9.7    ok     -           via homebrew (0.12.18 available)
-  python      3.12.6   ok     -           via pyenv
+  python      3.12.12  ok     -           uv-managed (~/.local/share/uv/python)
   cmux        0.64.22  ok     -           as a macOS app (0.64.25 available)
+
+--------------------------------------------------------------------------------
+vivo
+  vivo                 ok     -           uv tool vivario-core, python 3.12.12
 
 --------------------------------------------------------------------------------
 project
@@ -34,10 +37,17 @@ project
 --------------------------------------------------------------------------------
 summary
   Prerequisites:       ok     -           already installed
+  Vivo:                ok     -           already installed
   Project:             ok     -           already initialized
 
   **Vivario is ready to run!**  To start:  % ./vivario-start
 ```
+
+Before anything is installed it also prints **pre-install notes** -- situational,
+not general. They appear only when they apply to what is about to happen on this
+machine: that uv was installed by Homebrew and so must be used to upgrade it, that
+a uv-managed interpreter is about to appear, that cmux updates itself from inside
+the app. A machine with nothing to do prints none.
 
 Two columns carry the state: **state** answers "is this fine?", and **action**
 answers "what needs doing, or what was done". A clean run shows `-` in every
@@ -72,6 +82,7 @@ vivario-setup system               the machine: OS, Homebrew, network
 vivario-setup prerequisite         check every prerequisite
 vivario-setup prerequisite uv      check one
 vivario-setup prerequisite uv --install
+vivario-setup vivo                 the vivo CLI itself
 vivario-setup project              is this directory inside a project?
 ```
 
@@ -91,6 +102,10 @@ Every command takes the same flags:
 `--help` works at every level, and each command documents its own flags.
 
 ## Requirements
+
+macOS 14.0 or newer, and nothing else -- vivo is installed here too, as a single
+uv tool holding the whole core package set, built against a uv-managed
+interpreter. Every vivario package comes from git; none are published to PyPI.
 
 macOS 14.0 or newer, and nothing else. That floor is cmux's, not one chosen here
 -- cmux states it in its own update feed and in its installed bundle, and cmux is

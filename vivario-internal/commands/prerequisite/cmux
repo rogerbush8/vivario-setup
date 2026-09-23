@@ -95,7 +95,7 @@ plan() {
         state=$VS_NOT_OK
         action=$VS_ACT_NEEDS_YOU
         detail="older than $CMUX_MIN"
-        fix="update cmux from inside the app, then re-run"
+        fix="update it in the app, then re-run"
         return 0
     fi
     state=$VS_OK
@@ -141,5 +141,9 @@ if [ "$state" = "$VS_OK" ]; then
 fi
 
 vs_note "$fix"
+vs_prenote "cmux" <<'TXT'
+once installed, new versions of cmux are updated from
+inside the application -- nothing here will upgrade it for you.
+TXT
 about
 exit "$VS_RC_BLOCKED"

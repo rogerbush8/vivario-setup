@@ -277,6 +277,29 @@ vs_about() {
     printf '\n'
 }
 
+# vs_prenote LABEL -- a SITUATIONAL note, read from stdin, about what is about to
+# happen on this machine.
+#
+# Distinct from vs_about, which is static prose explaining what a thing is. These
+# depend on detected state: that uv was installed by Homebrew and so must be used
+# to upgrade it, or that an interpreter is about to appear. A leaf emits one while
+# planning; the caller collects them by setting VS_PRENOTE_FILE, so they can be
+# shown together rather than scattered through the rows. Run on its own with no
+# collector, a leaf discards them -- there is no install about to happen.
+vs_prenote() {
+    if [ -z "${VS_PRENOTE_FILE:-}" ]; then
+        cat >/dev/null
+        return 0
+    fi
+    {
+        if [ -s "$VS_PRENOTE_FILE" ]; then
+            printf '\n'
+        fi
+        printf '%s - ' "$1"
+        cat
+    } >> "$VS_PRENOTE_FILE"
+}
+
 # vs_debug TEXT -- diagnostics, only under --debug.
 #
 # Separate from --verbose on purpose. --verbose explains what a thing is and why

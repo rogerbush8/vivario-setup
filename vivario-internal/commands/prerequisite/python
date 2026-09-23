@@ -1,51 +1,84 @@
 #!/usr/bin/env bash
-# description: a Python interpreter new enough for the vivo toolset
+# description: a uv-managed CPython for vivo to run on
 set -euo pipefail
 . "$(dirname "$0")/../../lib/common.sh"
 
 NAME=python
-# Not a guess: every vivario pyproject.toml declares requires-python = ">=3.10".
+# The floor vivario needs: every vivario pyproject.toml declares
+# requires-python = ">=3.10".
 PYTHON_MIN=3.10
+# What gets installed. Pinned exactly rather than to a series, because the point
+# of using a uv-managed interpreter is that every machine runs the same one --
+# tracking "3.12" would let machines drift apart by patch. Bump deliberately.
+PYTHON_VERSION=3.12.12
 
 usage() {
     printf 'Usage: vivario-setup prerequisite python [OPTIONS]\n\n'
-    printf '  Checks for a Python interpreter of at least %s.\n\n' "$PYTHON_MIN"
-    printf '  When one is missing or too old this installs an ADDITIONAL\n'
-    printf '  interpreter rather than replacing what is there. Replacing a\n'
-    printf '  system or pyenv-managed Python breaks whatever else depends on it.\n\n'
+    printf '  Checks for a uv-MANAGED CPython of at least %s, and installs\n' "$PYTHON_MIN"
+    printf '  %s if there is none.\n\n' "$PYTHON_VERSION"
+    printf '  Interpreters from Homebrew, pyenv or the system are deliberately\n'
+    printf '  ignored: vivo runs on its own, so it cannot be broken by an upgrade\n'
+    printf '  or a rehash somewhere else, and nothing here touches yours.\n\n'
     vs_flag_help
 }
 
 about() {
     vs_about <<'TXT'
-Python is what the vivo toolset itself runs on. Vivario needs one
-interpreter of at least 3.10 available for uv to build its tool
-environment against -- it does not care which one, or how you got it.
+vivo runs on its own Python, downloaded and managed by uv, kept under
+uv's own directory and used for nothing else.
 
-Nothing here touches the Python your own projects use. If an interpreter
-has to be installed, it is added alongside what you already have, never
-in place of it.
+That is deliberate. A Python from Homebrew or pyenv can be upgraded,
+re-shimmed or removed by something unrelated to vivario, and vivo would
+break through no fault of its own. Pinning an interpreter vivario
+controls removes that whole class of problem -- and it means nothing here
+has any opinion about the Python your projects use.
 TXT
 }
 
 # --- detect ---------------------------------------------------------------
+#
+# Only uv-managed interpreters count. A managed one is any whose path sits under
+# `uv python dir`, which is how uv itself distinguishes them.
 
 found=""
 version=""
-method=""
+managed_dir=""
 
 detect() {
-    if ! have_cmd python3; then
-        vs_debug "no python3 on PATH"
+    if ! have_cmd uv; then
+        vs_debug "no uv yet; it is installed before this runs"
         return 0
     fi
-    found=yes
-    local path
-    version=$(python3 --version 2>&1 | awk '{print $2}')
-    path=$(vs_resolve "$(command -v python3)")
-    method=$(vs_install_method "$path")
-    vs_debug "python3 at $path"
-    vs_debug "install method: $method"
+    managed_dir=$(uv python dir 2>/dev/null || true)
+    if [ -z "$managed_dir" ]; then
+        vs_debug "uv reported no managed-python directory"
+        return 0
+    fi
+    vs_debug "managed dir: $managed_dir"
+    # Highest managed version at or above the floor.
+    local line ver
+    while IFS= read -r line; do
+        case "$line" in
+            *"$managed_dir"*) ;;
+            *) continue ;;
+        esac
+        ver=$(printf '%s\n' "$line" | awk -F- '{print $2}')
+        if vs_vercmp_lt "$ver" "$PYTHON_MIN"; then
+            vs_debug "ignoring managed $ver, below $PYTHON_MIN"
+            continue
+        fi
+        if [ -z "$version" ] || ! vs_vercmp_lt "$ver" "$version"; then
+            version=$ver
+            found=yes
+        fi
+    done <<EOF
+$(uv python list --only-installed 2>/dev/null || true)
+EOF
+    if [ -n "$found" ]; then
+        vs_debug "managed python: $version"
+    else
+        vs_debug "no managed python at or above $PYTHON_MIN"
+    fi
 }
 
 # --- plan -----------------------------------------------------------------
@@ -56,33 +89,16 @@ detail=""
 fix=""
 
 plan() {
-    # uv is the preferred source: already a prerequisite, ordered ahead of this
-    # one, and needing no package manager of its own.
-    if have_cmd uv; then
-        fix="uv python install $PYTHON_MIN"
-    elif have_cmd brew; then
-        fix="brew install python@$PYTHON_MIN"
-    else
-        fix="install Python $PYTHON_MIN or newer, then re-run"
-    fi
-
+    fix="uv python install $PYTHON_VERSION"
     if [ -z "$found" ]; then
         state=$VS_NOT_OK
         action=$VS_ACT_NEEDS_INSTALL
-        detail="not found"
-        return 0
-    fi
-    if vs_vercmp_lt "$version" "$PYTHON_MIN"; then
-        # Deliberately an install, not an upgrade: replacing the interpreter
-        # already there would break whatever else depends on it.
-        state=$VS_NOT_OK
-        action=$VS_ACT_NEEDS_INSTALL
-        detail="older than $PYTHON_MIN"
+        detail="no uv-managed interpreter"
         return 0
     fi
     state=$VS_OK
     action=$VS_ACT_NONE
-    detail="$(vs_method_label "$method")"
+    detail="uv-managed$([ -n "$managed_dir" ] && printf ' (%s)' "$(vs_tilde "$managed_dir")")"
 }
 
 # --- run ------------------------------------------------------------------
@@ -92,8 +108,6 @@ if [ "$VS_ACTION" = help ]; then
     usage
     exit 0
 fi
-
-# Notes are static prose: no detection, so collecting them is free.
 if [ "$VS_ACTION" = notes ]; then
     VS_NOTES=1
     vs_note_name "$NAME"
@@ -112,6 +126,12 @@ if [ "$state" = "$VS_OK" ]; then
 fi
 
 vs_note "$fix"
+# Situational: only worth saying when an interpreter is actually about to appear.
+vs_prenote "python" <<TXT
+a uv-managed CPython $PYTHON_VERSION will be installed, used by vivario and
+nothing else. It is isolated and will not interfere with any Python on your
+system or in your projects.
+TXT
 about
 
 if [ "$VS_ACTION" != install ] || [ -n "$VS_DRY_RUN" ]; then

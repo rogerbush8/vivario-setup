@@ -16,7 +16,7 @@ if [ "$VS_ACTION" = help ]; then
     exit 0
 fi
 
-printf '\nINSTALL PLAN\n'
+printf '\nVIVARIO INSTALL PLAN'
 
 HERE=$(cd "$(dirname "$0")" && pwd)
 INTERNAL=$(dirname "$HERE")
@@ -52,7 +52,9 @@ vs_heading "prerequisites"
 # runs in a subshell, so every count set inside it would be discarded -- which
 # silently made this command always report success.
 leaves=$(mktemp)
-trap 'rm -f "$leaves"' EXIT
+prenotes=$(mktemp)
+trap 'rm -f "$leaves" "$prenotes"' EXIT
+export VS_PRENOTE_FILE="$prenotes"
 vs_ordered_prerequisites "$INTERNAL" > "$leaves"
 
 installs=0
@@ -71,6 +73,17 @@ while IFS= read -r leaf; do
 done < "$leaves"
 work=$((installs + upgrades))
 
+# --- vivo -----------------------------------------------------------------
+
+vs_heading "vivo"
+vivo_rc=0
+"$HERE/vivo" ${FLAGS} || vivo_rc=$?
+case "$vivo_rc" in
+    "$VS_RC_WORK")    installs=$((installs + 1)); work=$((work + 1)) ;;
+    "$VS_RC_UPGRADE") upgrades=$((upgrades + 1)); work=$((work + 1)) ;;
+    "$VS_RC_BLOCKED") blocked=$((blocked + 1)) ;;
+esac
+
 # --- project --------------------------------------------------------------
 
 vs_heading "project"
@@ -88,6 +101,7 @@ if [ -n "${VS_VERBOSE:-}" ]; then
     while IFS= read -r leaf; do
         "$leaf" --notes || true
     done < "$leaves"
+    "$HERE/vivo" --notes || true
     "$HERE/project" --notes || true
 fi
 
@@ -122,10 +136,21 @@ else
     vs_info "Prerequisites:" "$VS_NOT_OK" "needs you" "$(plural "$blocked" item)"
 fi
 
+if [ "$vivo_rc" -eq 0 ]; then
+    vs_info "Vivo:" "$VS_OK" "$VS_ACT_NONE" "already installed"
+else
+    vs_info "Vivo:" "$VS_NOT_OK" "$VS_ACT_NEEDS_INSTALL" "not installed"
+fi
+
 if [ "$project_rc" -eq 0 ]; then
     vs_info "Project:" "$VS_OK" "$VS_ACT_NONE" "already initialized"
 else
     vs_info "Project:" "$VS_NOT_OK" "needs you" "no project here"
+fi
+
+if [ -s "$prenotes" ]; then
+    vs_heading "pre-install notes"
+    sed 's/^./  &/' "$prenotes"
 fi
 
 # What to do next.
