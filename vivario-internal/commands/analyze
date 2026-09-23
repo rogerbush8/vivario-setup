@@ -20,7 +20,6 @@ printf '\nINSTALL PLAN\n'
 
 HERE=$(cd "$(dirname "$0")" && pwd)
 INTERNAL=$(dirname "$HERE")
-PAYLOAD=$(dirname "$INTERNAL")
 FLAGS="${VS_VERBOSE:+--verbose} ${VS_DEBUG:+--debug} ${VS_OFFLINE:+--offline}"
 
 # --- system ---------------------------------------------------------------
@@ -140,10 +139,6 @@ elif [ "$blocked" -gt 0 ] || [ "$project_rc" -ne 0 ]; then
     printf '  Resolve the items above, then run this again.\n'
 else
     printf '  Vivario is ready to run.  To start:  %% ./vivario-start\n'
-    if [ ! -x "$PAYLOAD/vivario-start" ]; then
-        # Still say so rather than silently pointing at a file that is not there.
-        printf '  (vivario-start is not in this payload yet)\n'
-    fi
 fi
 
 if [ "$work" -gt 0 ]; then
