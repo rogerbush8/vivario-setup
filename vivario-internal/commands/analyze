@@ -46,12 +46,6 @@ if [ "$net_rc" -ne 0 ]; then
     export VS_OFFLINE=1
 fi
 
-# --- project --------------------------------------------------------------
-
-vs_heading "project"
-project_rc=0
-"$HERE/project" ${VS_DEBUG:+--debug} || project_rc=$?
-
 # --- prerequisites --------------------------------------------------------
 
 vs_heading "prerequisites"
@@ -76,6 +70,12 @@ while IFS= read -r leaf; do
     esac
 done < "$leaves"
 
+# --- project --------------------------------------------------------------
+
+vs_heading "project"
+project_rc=0
+"$HERE/project" ${VS_DEBUG:+--debug} || project_rc=$?
+
 # --- notes ----------------------------------------------------------------
 #
 # Collected at the end rather than interleaved, so the rows above stay a table
@@ -98,10 +98,10 @@ Vivario neither requires nor installs it. Each prerequisite will be
 installed using its own installer instead.
 TXT
     fi
-    "$HERE/project" --notes || true
     while IFS= read -r leaf; do
         "$leaf" --notes || true
     done < "$leaves"
+    "$HERE/project" --notes || true
 fi
 
 # --- summary --------------------------------------------------------------

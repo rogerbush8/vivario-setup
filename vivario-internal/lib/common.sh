@@ -125,6 +125,18 @@ vs_install_method() {
     esac
 }
 
+# vs_tilde PATH -- shorten a path under $HOME to ~/..., for display.
+#
+# An absolute project path pushes a row past 80 columns; ~ keeps it readable and
+# is what a person would write anyway.
+vs_tilde() {
+    case "$1" in
+        "$HOME")   printf '~\n' ;;
+        "$HOME"/*) printf '~%s\n' "${1#$HOME}" ;;
+        *)         printf '%s\n' "$1" ;;
+    esac
+}
+
 # vs_method_label METHOD -- how to say a method to a person.
 #
 # The classification names are for code; some of them ("app-bundle") mean nothing
@@ -192,10 +204,13 @@ vs_report() {
     printf '  %-11s %-10s %-9s %s\n' "$1" "${2:--}" "$3" "${4:-}"
 }
 
-# vs_info NAME STATUS [DETAIL] -- a row for something that has no version,
-# aligned with vs_report so the two read as one table.
+# vs_info NAME STATUS [DETAIL] -- a row for something that has no version.
+#
+# The name spans the name AND version columns, since there is no version to show,
+# so a long name like ".vivario/project.toml" fits without pushing the status
+# column out of line with the rows above it.
 vs_info() {
-    printf '  %-11s %-10s %-9s %s\n' "$1" "" "$2" "${3:-}"
+    printf '  %-22s %-9s %s\n' "$1" "$2" "${3:-}"
 }
 
 # vs_note TEXT -- an indented continuation line under a report row.

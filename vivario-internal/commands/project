@@ -31,7 +31,24 @@ TXT
 # --- detect ---------------------------------------------------------------
 
 root=""
-name=""
+has_dir=""
+has_marker=""
+proj_name=""
+proj_created=""
+
+# Read one key from the [project] table. Enough TOML for this: the value is a
+# quoted string, and the table ends at the next [header].
+project_key() {
+    awk -v key="$1" '
+        /^\[project\]/ { inside = 1; next }
+        /^\[/          { inside = 0 }
+        inside && $0 ~ "^" key " *=" {
+            split($0, parts, "\"")
+            print parts[2]
+            exit
+        }
+    ' "$root/$MARKER"
+}
 
 detect() {
     local dir
@@ -39,37 +56,53 @@ detect() {
     while [ -n "$dir" ] && [ "$dir" != "/" ]; do
         if [ -f "$dir/$MARKER" ]; then
             root=$dir
-            name=${dir##*/}
+            has_dir=yes
+            has_marker=yes
             vs_debug "project root: $root"
-            return 0
+            break
+        fi
+        if [ -d "$dir/.vivario" ] && [ -z "$has_dir" ]; then
+            # A .vivario/ with no project.toml looks like a project to a person
+            # but not to vivo, so it is worth reporting distinctly.
+            root=$dir
+            has_dir=yes
+            vs_debug ".vivario/ without $MARKER at $dir"
         fi
         dir=$(dirname "$dir")
     done
-    if [ -f "/$MARKER" ]; then
-        root=/
-        name=/
-        return 0
+    if [ -n "$has_marker" ]; then
+        proj_name=$(project_key name)
+        proj_created=$(project_key created)
+        vs_debug "project name: ${proj_name:-unknown}"
     fi
-    vs_debug "no $MARKER found walking up from $(pwd)"
 }
 
-# --- plan -----------------------------------------------------------------
+# --- report ---------------------------------------------------------------
 
 status=""
-detail=""
 fix=""
 
-plan() {
-    if [ -n "$root" ]; then
-        status=$VS_STATUS_OK
-        detail="already initialized"
+report() {
+    if [ -z "$has_dir" ]; then
+        vs_info ".vivario/" "absent" "nothing found above $(pwd)"
+        vs_info "$MARKER" "absent" "vivo will not run outside a project"
+        status=$VS_STATUS_MANUAL
+        fix="vivario-setup does not create projects yet; run this inside one"
         return 0
     fi
-    # Creating one is pipeline step 3 and is not built. Say so rather than
-    # implying this can be fixed here.
-    status=$VS_STATUS_MANUAL
-    detail="no project here"
-    fix="vivario-setup does not create projects yet; run this inside one"
+
+    vs_info ".vivario/" "ok" "$(vs_tilde "$root")"
+
+    if [ -z "$has_marker" ]; then
+        vs_info "$MARKER" "absent" "the directory exists but names no project"
+        status=$VS_STATUS_MANUAL
+        fix="a .vivario/ without project.toml is not a project vivo accepts"
+        return 0
+    fi
+
+    vs_info "$MARKER" "ok" \
+        "${proj_name:-unnamed}${proj_created:+, created $proj_created}"
+    status=$VS_STATUS_OK
 }
 
 # --- run ------------------------------------------------------------------
@@ -87,9 +120,8 @@ if [ "$VS_ACTION" = notes ]; then
 fi
 
 detect
-plan
+report
 
-vs_info "$NAME" "$status" "${name:+$name, }$detail"
 if [ "$status" = "$VS_STATUS_OK" ]; then
     about
     exit 0
