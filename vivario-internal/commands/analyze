@@ -27,19 +27,8 @@ vs_info "os" "$(vs_os)" "$(vs_os_release) ($(vs_arch))"
 brew_prefix=$(vs_brew_prefix)
 if [ -n "$brew_prefix" ]; then
     vs_info "homebrew" "ok" "$brew_prefix"
-    vs_about <<'TXT'
-You have Homebrew installed, which is an optional macOS package manager.
-Vivario doesn't require or install it. However, if a prerequisite was
-installed by Homebrew, Vivario *must* use Homebrew to upgrade that
-prerequisite -- which is why you are seeing it in this list.
-TXT
 else
     vs_info "homebrew" "absent" "installs will use each tool's own installer"
-    vs_about <<'TXT'
-Homebrew is an optional macOS package manager. You don't have it, and
-Vivario neither requires nor installs it. Each prerequisite will be
-installed using its own installer instead.
-TXT
 fi
 
 # Probed once here, not per check: one short answer instead of N timeouts, and
@@ -64,7 +53,35 @@ rc=0
 vs_ordered_prerequisites "$(dirname "$HERE")" | while IFS= read -r leaf; do
     # Flags have to be forwarded explicitly: each leaf is its own process and
     # inherits nothing it was not handed.
-    "$leaf" --install --dry-run ${VS_VERBOSE:+--verbose} ${VS_DEBUG:+--debug} ${VS_OFFLINE:+--offline} || true
+    "$leaf" --install --dry-run ${VS_DEBUG:+--debug} ${VS_OFFLINE:+--offline} || true
 done
+
+# --- notes ----------------------------------------------------------------
+#
+# Collected at the end rather than interleaved, so the rows above stay a table
+# that can be read at a glance. Notes are static prose, so this costs no extra
+# detection.
+if [ -n "${VS_VERBOSE:-}" ]; then
+    vs_heading "notes"
+    if [ -n "$brew_prefix" ]; then
+        vs_note_name "homebrew"
+        VS_NOTES=1 vs_about <<'TXT'
+You have Homebrew installed, which is an optional macOS package manager.
+Vivario doesn't require or install it. However, if a prerequisite was
+installed by Homebrew, Vivario *must* use Homebrew to upgrade that
+prerequisite -- which is why you are seeing it in this list.
+TXT
+    else
+        vs_note_name "homebrew"
+        VS_NOTES=1 vs_about <<'TXT'
+Homebrew is an optional macOS package manager. You don't have it, and
+Vivario neither requires nor installs it. Each prerequisite will be
+installed using its own installer instead.
+TXT
+    fi
+    vs_ordered_prerequisites "$(dirname "$HERE")" | while IFS= read -r leaf; do
+        "$leaf" --notes || true
+    done
+fi
 
 exit "$rc"

@@ -103,6 +103,14 @@ if [ "$VS_ACTION" = help ]; then
     exit 0
 fi
 
+# Notes are static prose: no detection, so collecting them is free.
+if [ "$VS_ACTION" = notes ]; then
+    VS_NOTES=1
+    vs_note_name "$NAME"
+    about
+    exit 0
+fi
+
 detect
 plan
 

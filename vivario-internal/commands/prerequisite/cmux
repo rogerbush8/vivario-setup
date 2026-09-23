@@ -92,18 +92,21 @@ plan() {
         return 0
     fi
     status=$VS_STATUS_OK
-    detail="$method"
+    # The install method is deliberately not shown here. For uv it earns its
+    # place because it decides the upgrade command; for cmux it never does, and
+    # "app-bundle" means nothing to a reader. It stays available under --debug.
     if [ -n "$latest" ]; then
         if vs_vercmp_lt "$version" "$latest"; then
-            detail="$method; $latest available"
+            detail="$latest available"
         else
-            detail="$method; newest"
+            detail="newest"
         fi
     else
         # Say so, rather than letting "could not check" read as "nothing newer".
         case "$latest_state" in
-            offline)     detail="$method; latest not checked (offline)" ;;
-            unreachable) detail="$method; latest unknown (no network)" ;;
+            offline)     detail="latest not checked (offline)" ;;
+            unreachable) detail="latest unknown (no network)" ;;
+            *)           detail="" ;;
         esac
     fi
 }
@@ -113,6 +116,14 @@ plan() {
 vs_parse_args ${@+"$@"} || exit 2
 if [ "$VS_ACTION" = help ]; then
     usage
+    exit 0
+fi
+
+# Notes are static prose: no detection, so collecting them is free.
+if [ "$VS_ACTION" = notes ]; then
+    VS_NOTES=1
+    vs_note_name "$NAME"
+    about
     exit 0
 fi
 

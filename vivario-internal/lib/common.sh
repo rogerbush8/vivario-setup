@@ -191,13 +191,18 @@ vs_heading() {
     printf '\n%s\n' "$1"
 }
 
+# vs_note_name NAME -- label a block in the notes section.
+vs_note_name() {
+    printf '  %s\n' "$1"
+}
+
 # vs_about -- indent a prose block read from stdin, for --verbose.
 #
 # Explains what a thing IS and why vivario wants it, which is different from the
 # diagnostic detail vs_debug carries. Both belong to --verbose: someone meeting
 # this for the first time wants the former, someone debugging wants the latter.
 vs_about() {
-    if [ -z "${VS_VERBOSE:-}" ]; then
+    if [ -z "${VS_VERBOSE:-}${VS_NOTES:-}" ]; then
         cat >/dev/null
         return 0
     fi
@@ -256,6 +261,7 @@ vs_parse_args() {
             -h|--help)   VS_ACTION=help ;;
             --dry-run)   VS_DRY_RUN=1 ;;
             --offline)   VS_OFFLINE=1 ;;
+            --notes)     VS_ACTION=notes ;;
             --verbose)   VS_VERBOSE=1 ;;
             --debug)     VS_DEBUG=1 ;;
             -y|--yes)    VS_ASSUME_YES=1 ;;
