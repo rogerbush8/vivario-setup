@@ -19,7 +19,7 @@ system
 
 prerequisites
   cmux        0.64.22    ok        app-bundle; 0.64.25 available
-                                   update in-app when convenient (Sparkle)
+                                   update it from inside the app when convenient
   uv          0.9.7      ok        released 2025-10-30, via homebrew
 
 everything is already in place. Nothing to do.
@@ -70,10 +70,10 @@ Every command takes the same flags:
 ## Two things it deliberately does not do
 
 **It will not install cmux.** cmux is a macOS application bundle with no package
-manager and no command-line installer, and it updates itself through Sparkle. A
-signed 225 MB disk image install is something Sparkle already does correctly, so
-this reports what it finds and tells you what to do rather than reimplementing
-that badly.
+manager and no command-line installer, and it updates itself from inside the app.
+A signed 225 MB disk image install is something its own updater already does
+correctly, so this reports what it finds and tells you what to do rather than
+reimplementing that badly.
 
 **It will not upgrade something the wrong way.** How a tool is upgraded depends on
 how it was installed — `uv self update` refuses outright on a Homebrew-installed
