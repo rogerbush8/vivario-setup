@@ -1,0 +1,127 @@
+#!/usr/bin/env bash
+# description: cmux, the terminal multiplexer vivo drives agents through
+set -euo pipefail
+. "$(dirname "$0")/../../lib/common.sh"
+
+NAME=cmux
+# PROVISIONAL floor. Checks adequacy offline; staleness against the real latest
+# is an enrichment that needs the feed.
+CMUX_MIN=0.60.0
+
+# Sparkle's own feed, read from the installed bundle's Info.plist when present.
+CMUX_FEED=https://github.com/manaflow-ai/cmux/releases/latest/download/appcast.xml
+# Stable regardless of version, so install instructions need no lookup.
+CMUX_DMG=https://github.com/manaflow-ai/cmux/releases/latest/download/cmux-macos.dmg
+
+usage() {
+    printf 'Usage: vivo-setup prerequisite cmux [OPTIONS]\n\n'
+    printf '  Checks that cmux is installed and at least %s.\n\n' "$CMUX_MIN"
+    printf '  cmux is a macOS application bundle with no package manager and no\n'
+    printf '  command-line installer, so this checks and advises but never\n'
+    printf '  installs or upgrades. It updates itself through Sparkle, in-app.\n\n'
+    vs_flag_help
+}
+
+# --- detect (local only) --------------------------------------------------
+
+found=""
+version=""
+method=""
+
+detect() {
+    if ! have_cmd cmux; then
+        vs_debug "cmux not on PATH"
+        return 0
+    fi
+    found=yes
+    local path
+    version=$(cmux --version 2>/dev/null | awk '{print $2}')
+    path=$(vs_resolve "$(command -v cmux)")
+    method=$(vs_install_method "$path")
+    vs_debug "cmux at $path"
+    vs_debug "install method: $method"
+}
+
+# --- enrich (network, optional) -------------------------------------------
+
+latest=""
+latest_state=""
+
+enrich() {
+    if [ -z "$found" ]; then
+        # Nothing to compare against; the verdict is already known locally.
+        return 0
+    fi
+    local feed rc=0
+    feed=$(vs_fetch "$CMUX_FEED") || rc=$?
+    latest_state=$(vs_fetch_state "$rc")
+    if [ -z "$feed" ]; then
+        vs_debug "latest version unknown ($latest_state)"
+        return 0
+    fi
+    latest=$(awk -F'[<>]' '/sparkle:shortVersionString/{print $3; exit}' <<< "$feed")
+    vs_debug "latest per appcast: ${latest:-unknown}"
+}
+
+# --- plan -----------------------------------------------------------------
+
+status=""
+detail=""
+fix=""
+
+plan() {
+    if [ -z "$found" ]; then
+        # Installing a signed .app means download, signature check, mount and
+        # copy. Sparkle already does that correctly; we do not reimplement it.
+        status=$VS_STATUS_MANUAL
+        detail="not found; install it yourself, then re-run"
+        fix="download $CMUX_DMG and drag cmux.app to /Applications"
+        return 0
+    fi
+    if vs_vercmp_lt "$version" "$CMUX_MIN"; then
+        status=$VS_STATUS_MANUAL
+        detail="older than $CMUX_MIN"
+        fix="update cmux from inside the app (Sparkle), then re-run"
+        return 0
+    fi
+    status=$VS_STATUS_OK
+    detail="$method"
+    if [ -n "$latest" ]; then
+        if vs_vercmp_lt "$version" "$latest"; then
+            detail="$method; $latest available"
+        else
+            detail="$method; newest"
+        fi
+    else
+        # Say so, rather than letting "could not check" read as "nothing newer".
+        case "$latest_state" in
+            offline)     detail="$method; latest not checked (offline)" ;;
+            unreachable) detail="$method; latest unknown (no network)" ;;
+        esac
+    fi
+}
+
+# --- run ------------------------------------------------------------------
+
+vs_parse_args ${@+"$@"} || exit 2
+if [ "$VS_ACTION" = help ]; then
+    usage
+    exit 0
+fi
+
+detect
+enrich
+plan
+
+vs_report "$NAME" "$version" "$status" "$detail"
+
+if [ "$status" = "$VS_STATUS_OK" ]; then
+    # An available update is information, not a failure: cmux works.
+    if [ -n "$latest" ] && vs_vercmp_lt "$version" "$latest"; then
+        vs_note "update in-app when convenient (Sparkle)"
+    fi
+    exit 0
+fi
+
+vs_note "$fix"
+exit "$VS_RC_BLOCKED"

@@ -1,0 +1,114 @@
+#!/usr/bin/env bash
+# description: install or upgrade whatever is missing, after confirming
+set -euo pipefail
+. "$(dirname "$0")/../lib/common.sh"
+
+usage() {
+    printf 'Usage: vivo-setup install [OPTIONS]\n\n'
+    printf '  Reports what it would do, asks, then does it. Safe to re-run: what\n'
+    printf '  is already in place is left alone.\n\n'
+    vs_flag_help
+}
+
+vs_parse_args ${@+"$@"} || exit 2
+if [ "$VS_ACTION" = help ]; then
+    usage
+    exit 0
+fi
+
+HERE=$(dirname "$0")
+INTERNAL=$(dirname "$HERE")
+PREREQ="$HERE/prerequisite"
+SEQUENCE="$INTERNAL/install-sequence"
+
+# ordered_leaves -- prerequisite commands in install order.
+#
+# Order comes from install-sequence/, never from the command names: a command is
+# named for what it is, not for when it runs. An entry named NN-<name> means
+# "run prerequisite/<name> at this position". Anything with no entry runs after,
+# alphabetically, so a new command is never silently skipped.
+ordered_leaves() {
+    local e name seen=""
+    for e in "$SEQUENCE"/*; do
+        name=${e##*/}
+        case "$name" in
+            *.md) continue ;;
+        esac
+        name=${name#*-}
+        if [ -x "$PREREQ/$name" ]; then
+            printf '%s\n' "$PREREQ/$name"
+            seen="$seen $name"
+        else
+            vs_debug "install-sequence names $name, but no such command"
+        fi
+    done
+    local leaf
+    for leaf in "$PREREQ"/*; do
+        if [ ! -x "$leaf" ]; then
+            continue
+        fi
+        name=${leaf##*/}
+        case " $seen " in
+            *" $name "*) continue ;;
+        esac
+        vs_debug "$name has no install-sequence entry; running it last"
+        printf '%s\n' "$leaf"
+    done
+}
+
+# --- plan first, always ---------------------------------------------------
+
+"$HERE/analyze" ${VS_VERBOSE:+--verbose} ${VS_OFFLINE:+--offline} || true
+
+work=0
+blocked=0
+for leaf in $(ordered_leaves); do
+    rc=0
+    "$leaf" --install --dry-run >/dev/null 2>&1 || rc=$?
+    case "$rc" in
+        "$VS_RC_WORK")    work=$((work + 1)) ;;
+        "$VS_RC_BLOCKED") blocked=$((blocked + 1)) ;;
+    esac
+done
+
+printf '\n'
+if [ "$work" -eq 0 ]; then
+    if [ "$blocked" -gt 0 ]; then
+        if [ "$blocked" -eq 1 ]; then
+            printf 'nothing I can install -- 1 thing needs you, see above.\n'
+        else
+            printf 'nothing I can install -- %s things need you, see above.\n' "$blocked"
+        fi
+        exit 1
+    fi
+    printf 'everything is already in place. Nothing to do.\n'
+    exit 0
+fi
+
+if [ "$work" -eq 1 ]; then
+    printf '1 thing to do'
+else
+    printf '%s things to do' "$work"
+fi
+if [ "$blocked" -gt 0 ]; then
+    if [ "$blocked" -eq 1 ]; then
+        printf ', and 1 that needs you'
+    else
+        printf ', and %s that need you' "$blocked"
+    fi
+fi
+printf '.\n'
+
+if ! vs_confirm "proceed?"; then
+    printf 'nothing done.\n'
+    exit 1
+fi
+
+# --- act ------------------------------------------------------------------
+
+vs_heading "installing"
+rc=0
+for leaf in $(ordered_leaves); do
+    VS_ASSUME_YES=1 "$leaf" --install || rc=1
+done
+exit "$rc"

@@ -1,0 +1,148 @@
+#!/usr/bin/env bash
+#
+# vivo-setup -- verify and install what vivo needs, before vivo exists.
+#
+# This is the only entrypoint. It resolves a command by walking the argument
+# list against the directory tree under vivo-setup-internal/commands: a name
+# that matches a directory descends into it, a name that matches an executable
+# file runs it with whatever arguments remain. Adding a command is one
+# executable file and no edit to anything above it.
+#
+# Targets bash 3.2 -- the version Apple ships. See vivo-setup-internal/README.md.
+
+set -euo pipefail
+
+PROG=${0##*/}
+INTERNAL="$(dirname "$0")/vivo-setup-internal"
+COMMANDS="$INTERNAL/commands"
+
+if [ ! -d "$COMMANDS" ]; then
+    printf '%s: cannot find %s -- is vivo-setup-internal/ alongside this script?\n' \
+        "$PROG" "$COMMANDS" >&2
+    exit 1
+fi
+
+# describe FILE -- the file's own one-line description, or nothing.
+#
+# Succeeds even when FILE does not exist or carries no header: a group without a
+# _group file is normal. One awk rather than sed piped to head, so there is no
+# pipeline for `set -o pipefail` to trip over.
+describe() {
+    if [ ! -f "$1" ]; then
+        return 0
+    fi
+    awk '/^# description: /{sub(/^# description: */, ""); print; exit}' "$1"
+}
+
+# skippable NAME -- true for entries that are not commands.
+skippable() {
+    case "$1" in
+        _*|*.md|VERSION) return 0 ;;
+    esac
+    return 1
+}
+
+# usage WORDS DIR -- help for a group, built from its children's own headers.
+usage() {
+    local words=$1 dir=$2 c name desc
+    if [ -n "$words" ]; then
+        printf 'Usage: %s %s [COMMAND]\n\n' "$PROG" "$words"
+    else
+        printf 'Usage: %s [COMMAND]\n\n' "$PROG"
+        printf '  Verify and install the prerequisites vivo needs, before vivo exists.\n'
+        printf '  With no COMMAND, does what `install` does: report, ask, then act.\n'
+        printf '  Nothing is changed without confirming first.\n\n'
+    fi
+    printf 'Commands:\n'
+    for c in "$dir"/*; do
+        name=${c##*/}
+        if skippable "$name"; then
+            continue
+        fi
+        if [ -d "$c" ]; then
+            desc=$(describe "$c/_group")
+            printf '  %-14s %s\n' "$name" "${desc:-(group)}"
+        elif [ -x "$c" ]; then
+            printf '  %-14s %s\n' "$name" "$(describe "$c")"
+        fi
+    done
+}
+
+# run_group DIR [ARGS...] -- run every command under DIR with ARGS, and report
+# the worst outcome. Flags are forwarded, which is why every command accepts the
+# same set: one a child did not understand would fail the whole group.
+run_group() {
+    local dir=$1 rc=0 c name
+    shift
+    for c in "$dir"/*; do
+        name=${c##*/}
+        if skippable "$name"; then
+            continue
+        fi
+        if [ -d "$c" ]; then
+            run_group "$c" ${@+"$@"} || rc=1
+        elif [ -x "$c" ]; then
+            "$c" ${@+"$@"} || rc=1
+        fi
+    done
+    return "$rc"
+}
+
+want_help=no
+for arg in ${@+"$@"}; do
+    case "$arg" in
+        -h|--help)
+            want_help=yes
+            ;;
+        --version)
+            cat "$INTERNAL/VERSION"
+            exit 0
+            ;;
+    esac
+done
+
+# Walk the arguments against the command tree.
+node=$COMMANDS
+words=""
+while [ $# -gt 0 ]; do
+    case "$1" in
+        -*) break ;;
+    esac
+    if [ -d "$node/$1" ]; then
+        node="$node/$1"
+        words="${words:+$words }$1"
+        shift
+        continue
+    fi
+    if [ -x "$node/$1" ]; then
+        node="$node/$1"
+        words="${words:+$words }$1"
+        shift
+        break
+    fi
+    printf '%s: unknown command: %s\n' "$PROG" "$1" >&2
+    printf "Try '%s%s --help'.\n" "$PROG" "${words:+ $words}" >&2
+    exit 2
+done
+
+# A single command: hand it the rest of the arguments.
+if [ -f "$node" ]; then
+    # --help included: a command documents its own flags, and only it knows them.
+    exec "$node" ${@+"$@"}
+fi
+
+# A group.
+if [ "$want_help" = yes ]; then
+    usage "$words" "$node"
+    exit 0
+fi
+
+if [ -z "$words" ]; then
+    if [ ! -x "$COMMANDS/_default" ]; then
+        printf '%s: missing %s\n' "$PROG" "$COMMANDS/_default" >&2
+        exit 1
+    fi
+    exec "$COMMANDS/_default" ${@+"$@"}
+fi
+
+run_group "$node" ${@+"$@"}

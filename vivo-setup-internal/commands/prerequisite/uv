@@ -1,0 +1,125 @@
+#!/usr/bin/env bash
+# description: uv, the installer vivo itself is delivered through
+set -euo pipefail
+. "$(dirname "$0")/../../lib/common.sh"
+
+NAME=uv
+# PROVISIONAL floor -- deliberately low. This checks adequacy, not currency.
+UV_MIN=0.5.0
+
+usage() {
+    printf 'Usage: vivo-setup prerequisite uv [OPTIONS]\n\n'
+    printf '  Checks that uv is installed and at least %s.\n\n' "$UV_MIN"
+    vs_flag_help
+}
+
+# --- detect ---------------------------------------------------------------
+
+found=""
+version=""
+released=""
+method=""
+
+detect() {
+    if ! have_cmd uv; then
+        vs_debug "uv not on PATH"
+        return 0
+    fi
+    found=yes
+    local raw path
+    raw=$(uv --version 2>/dev/null || true)
+    version=$(printf '%s\n' "$raw" | awk '{print $2}')
+    # "uv 0.9.7 (Homebrew 2025-10-30)" -- last field is the release date.
+    released=$(printf '%s\n' "$raw" | awk '{gsub(/[()]/, "", $NF); print $NF}')
+    path=$(vs_resolve "$(command -v uv)")
+    method=$(vs_install_method "$path")
+    vs_debug "uv at $path"
+    vs_debug "raw version: $raw"
+    vs_debug "install method: $method"
+}
+
+# --- plan -----------------------------------------------------------------
+
+status=""
+detail=""
+fix=""
+
+plan() {
+    if [ -z "$found" ]; then
+        status=$VS_STATUS_INSTALL
+        if have_cmd brew; then
+            detail="not found; will install with Homebrew"
+            fix="brew install uv"
+        else
+            detail="not found; will install with the standalone installer"
+            fix="curl -LsSf https://astral.sh/uv/install.sh | sh"
+        fi
+        return 0
+    fi
+    if vs_vercmp_lt "$version" "$UV_MIN"; then
+        status=$VS_STATUS_UPGRADE
+        # The upgrade command follows how uv was installed. Guessing here is how
+        # a machine ends up with two uvs on PATH.
+        case "$method" in
+            homebrew)
+                detail="older than $UV_MIN; will upgrade with Homebrew"
+                fix="brew upgrade uv"
+                ;;
+            standalone)
+                detail="older than $UV_MIN; will upgrade in place"
+                fix="uv self update"
+                ;;
+            *)
+                status=$VS_STATUS_MANUAL
+                detail="older than $UV_MIN, installed by an unknown method"
+                fix="upgrade uv however it was installed, then re-run"
+                ;;
+        esac
+        return 0
+    fi
+    status=$VS_STATUS_OK
+    detail="released $released, via $method"
+}
+
+# --- run ------------------------------------------------------------------
+
+vs_parse_args ${@+"$@"} || exit 2
+if [ "$VS_ACTION" = help ]; then
+    usage
+    exit 0
+fi
+
+detect
+plan
+
+vs_report "$NAME" "$version" "$status" "$detail"
+
+if [ "$status" = "$VS_STATUS_OK" ]; then
+    exit 0
+fi
+
+vs_note "$fix"
+
+if [ "$VS_ACTION" != install ] || [ -n "$VS_DRY_RUN" ]; then
+    # verify and dry-run both stop here: they report, they never act.
+    if [ "$status" = "$VS_STATUS_MANUAL" ]; then
+        exit "$VS_RC_BLOCKED"
+    fi
+    exit "$VS_RC_WORK"
+fi
+
+if [ "$status" = "$VS_STATUS_MANUAL" ]; then
+    exit "$VS_RC_BLOCKED"
+fi
+
+if ! vs_confirm "run: $fix"; then
+    printf '  %-11s %-10s %-9s %s\n' "$NAME" "" "skipped" "not confirmed"
+    exit 1
+fi
+
+vs_debug "running: $fix"
+eval "$fix"
+detect
+plan
+vs_report "$NAME" "$version" "$status" "$detail"
+[ "$status" = "$VS_STATUS_OK" ]

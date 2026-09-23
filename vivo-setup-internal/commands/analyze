@@ -1,0 +1,59 @@
+#!/usr/bin/env bash
+# description: report what is on this system and what would be done
+set -euo pipefail
+. "$(dirname "$0")/../lib/common.sh"
+
+usage() {
+    printf 'Usage: vivo-setup analyze [OPTIONS]\n\n'
+    printf '  Reports this system, whether the network is usable, and the state of\n'
+    printf '  every prerequisite. Changes nothing.\n\n'
+    vs_flag_help
+}
+
+vs_parse_args ${@+"$@"} || exit 2
+if [ "$VS_ACTION" = help ]; then
+    usage
+    exit 0
+fi
+
+HERE=$(dirname "$0")
+PREREQ="$HERE/prerequisite"
+
+# --- system ---------------------------------------------------------------
+
+vs_heading "system"
+vs_info "os" "$(vs_os)" "$(vs_os_release) ($(vs_arch))"
+
+brew_prefix=$(vs_brew_prefix)
+if [ -n "$brew_prefix" ]; then
+    vs_info "homebrew" "ok" "$brew_prefix"
+else
+    vs_info "homebrew" "absent" "installs will use each tool's own installer"
+fi
+
+# Probed once here, not per check: one short answer instead of N timeouts, and
+# the user is told why enrichment is missing rather than having to infer it.
+net_rc=0
+vs_probe_network || net_rc=$?
+case "$net_rc" in
+    0) vs_info "network" "ok" ;;
+    2) vs_info "network" "offline" "asked not to use it; checks stay local" ;;
+    *) vs_info "network" "absent" "checks are still correct, just less detailed" ;;
+esac
+if [ "$net_rc" -ne 0 ]; then
+    # Save every child a doomed five-second wait.
+    export VS_OFFLINE=1
+fi
+
+# --- prerequisites --------------------------------------------------------
+
+vs_heading "prerequisites"
+rc=0
+for leaf in "$PREREQ"/*; do
+    if [ ! -x "$leaf" ]; then
+        continue
+    fi
+    "$leaf" --install --dry-run || rc=1
+done
+
+exit "$rc"
